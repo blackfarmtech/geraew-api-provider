@@ -1,0 +1,26 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["geraew-provider"]
+}
+
+model GoogleCredential {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @unique
+  clientId       String   @map("client_id")
+  clientSecret   String   @map("client_secret")
+  refreshToken   String   @map("refresh_token")
+  quotaProjectId String   @map("quota_project_id")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("google_credentials")
+  @@schema("geraew-provider")
+}

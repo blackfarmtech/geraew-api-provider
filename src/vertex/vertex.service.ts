@@ -54,7 +54,7 @@ export class VertexService {
 
         if (status === 403 || status === 429) {
           const isBilling =
-            this.accountManager.handleBillingError(errorText);
+            await this.accountManager.handleBillingError(errorText);
           if (isBilling) {
             this.logger.log('Billing error detected, retrying with next account');
             continue;

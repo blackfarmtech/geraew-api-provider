@@ -5,10 +5,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
-import * as fs from 'fs';
-import * as path from 'path';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface AccountInfo {
+  dbId: string;
   credentials: {
     client_id: string;
     client_secret: string;
@@ -16,7 +16,6 @@ interface AccountInfo {
   };
   projectId: string;
   oauth2Client: OAuth2Client;
-  isExhausted: boolean;
   accessToken: string | null;
   tokenExpiry: number;
 }
@@ -28,6 +27,8 @@ export class AccountManagerService implements OnModuleInit {
   private accountIds: string[] = [];
   private activeIndex = 0;
   private refreshPromises = new Map<string, Promise<void>>();
+
+  constructor(private readonly prisma: PrismaService) {}
 
   private static readonly BILLING_PHRASES = [
     'billing account not found',
@@ -42,60 +43,48 @@ export class AccountManagerService implements OnModuleInit {
   ];
 
   async onModuleInit() {
-    this.loadAccounts();
-    if (this.accounts.size === 0) {
-      this.logger.warn('No credential files found in credentials/');
-    } else {
-      this.logger.log(
-        `Loaded ${this.accounts.size} account(s). Active: ${this.accountIds[this.activeIndex]}`,
-      );
-    }
+    await this.reloadAccounts();
   }
 
-  private loadAccounts() {
-    const credentialsDir = path.join(process.cwd(), 'credentials');
-    if (!fs.existsSync(credentialsDir)) {
-      this.logger.warn('credentials/ directory not found');
-      return;
-    }
+  async reloadAccounts() {
+    const rows = await this.prisma.googleCredential.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
 
-    const files = fs
-      .readdirSync(credentialsDir)
-      .filter((f) => f.endsWith('.json'))
-      .sort();
+    this.accounts.clear();
+    this.accountIds = [];
+    this.activeIndex = 0;
+    this.refreshPromises.clear();
 
-    for (const file of files) {
-      const filePath = path.join(credentialsDir, file);
-      const creds = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const projectId = creds.quota_project_id;
+    for (const row of rows) {
+      const oauth2Client = new OAuth2Client(row.clientId, row.clientSecret);
+      oauth2Client.setCredentials({ refresh_token: row.refreshToken });
 
-      if (!projectId) {
-        this.logger.warn(`No quota_project_id in ${file}, skipping`);
-        continue;
-      }
-
-      if (!creds.client_id || !creds.client_secret || !creds.refresh_token) {
-        this.logger.warn(`Invalid credentials in ${file}, skipping`);
-        continue;
-      }
-
-      const oauth2Client = new OAuth2Client(
-        creds.client_id,
-        creds.client_secret,
-      );
-      oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
-
-      const accountId = path.basename(file, '.json');
-      this.accounts.set(accountId, {
-        credentials: creds,
-        projectId,
+      this.accounts.set(row.name, {
+        dbId: row.id,
+        credentials: {
+          client_id: row.clientId,
+          client_secret: row.clientSecret,
+          refresh_token: row.refreshToken,
+        },
+        projectId: row.quotaProjectId,
         oauth2Client,
-        isExhausted: false,
         accessToken: null,
         tokenExpiry: 0,
       });
-      this.accountIds.push(accountId);
-      this.logger.log(`Loaded account: ${accountId} (project: ${projectId})`);
+      this.accountIds.push(row.name);
+      this.logger.log(
+        `Loaded account: ${row.name} (project: ${row.quotaProjectId})`,
+      );
+    }
+
+    if (this.accounts.size === 0) {
+      this.logger.warn('No active credentials found in database');
+    } else {
+      this.logger.log(
+        `Loaded ${this.accounts.size} active account(s). Active: ${this.accountIds[this.activeIndex]}`,
+      );
     }
   }
 
@@ -105,7 +94,7 @@ export class AccountManagerService implements OnModuleInit {
     }
     const id = this.accountIds[this.activeIndex];
     const account = this.accounts.get(id);
-    if (!account || account.isExhausted) {
+    if (!account) {
       throw new ServiceUnavailableException('All GCP accounts are exhausted');
     }
     return account;
@@ -156,7 +145,7 @@ export class AccountManagerService implements OnModuleInit {
     return this.getActiveAccount().projectId;
   }
 
-  handleBillingError(errorText: string): boolean {
+  async handleBillingError(errorText: string): Promise<boolean> {
     const lower = (errorText || '').toLowerCase();
     const isBilling = AccountManagerService.BILLING_PHRASES.some((phrase) =>
       lower.includes(phrase),
@@ -168,21 +157,25 @@ export class AccountManagerService implements OnModuleInit {
     this.logger.warn(`Billing error on account ${currentId}: ${errorText}`);
 
     const account = this.accounts.get(currentId);
-    if (account) account.isExhausted = true;
-
-    for (let i = 0; i < this.accountIds.length; i++) {
-      const id = this.accountIds[i];
-      const acc = this.accounts.get(id)!;
-      if (!acc.isExhausted) {
-        this.activeIndex = i;
-        this.logger.log(`Rotated to account: ${id}`);
-        return true;
-      }
+    if (account) {
+      await this.prisma.googleCredential.update({
+        where: { id: account.dbId },
+        data: { active: false },
+      });
+      this.logger.warn(`Deactivated account ${currentId} in database`);
+      this.accounts.delete(currentId);
+      this.accountIds.splice(this.activeIndex, 1);
     }
 
-    throw new ServiceUnavailableException(
-      'All GCP accounts are exhausted. No billing credits remaining.',
-    );
+    if (this.accountIds.length === 0) {
+      throw new ServiceUnavailableException(
+        'All GCP accounts are exhausted. No billing credits remaining.',
+      );
+    }
+
+    this.activeIndex = this.activeIndex % this.accountIds.length;
+    this.logger.log(`Rotated to account: ${this.accountIds[this.activeIndex]}`);
+    return true;
   }
 
   getAccountsStatus() {
@@ -196,16 +189,13 @@ export class AccountManagerService implements OnModuleInit {
       return {
         id,
         projectId: acc.projectId,
-        isExhausted: acc.isExhausted,
-        isActive: id === activeId,
+        isCurrent: id === activeId,
       };
     });
 
     return {
       totalAccounts: this.accounts.size,
       activeAccountId: activeId,
-      exhaustedCount: accounts.filter((a) => a.isExhausted).length,
-      availableCount: accounts.filter((a) => !a.isExhausted).length,
       accounts,
     };
   }
