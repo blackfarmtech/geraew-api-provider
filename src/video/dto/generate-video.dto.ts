@@ -35,7 +35,7 @@ export class GenerateVideoDto {
   @ApiPropertyOptional({ description: 'Modelo do Vertex AI', default: 'veo-3.1-generate-preview', example: 'veo-3.1-generate-preview' })
   @IsOptional()
   @IsString()
-  @IsIn(['veo-3.1-generate-preview', 'eo-3.1-fast-generate-preview'])
+  @IsIn(['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'])
   model?: string;
 
   @ApiPropertyOptional({ description: 'Região do Vertex AI', default: 'us-central1', example: 'us-central1' })
@@ -55,10 +55,10 @@ export class GenerateVideoDto {
   @IsIn(['16:9', '9:16'])
   aspect_ratio?: string;
 
-  @ApiPropertyOptional({ description: 'Resolução do vídeo', enum: ['720p', '1080p'], default: '720p' })
+  @ApiPropertyOptional({ description: 'Resolução do vídeo', enum: ['720p', '1080p', '4K'], default: '720p' })
   @IsOptional()
   @IsString()
-  @IsIn(['720p', '1080p'])
+  @IsIn(['720p', '1080p', '4K'])
   resolution?: string;
 
   @ApiPropertyOptional({ description: 'Gerar áudio junto com o vídeo', default: true })
