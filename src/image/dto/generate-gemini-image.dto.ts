@@ -21,7 +21,7 @@ export class GenerateGeminiImageDto {
   @ApiPropertyOptional({ description: 'Modelo Gemini a utilizar' })
   @IsOptional()
   @IsString()
-  @IsIn(['gemini-3.1-pro-preview', 'gemini-3.1-flash-image-preview'])
+  @IsIn(['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'])
   model?: string;
 
   @ApiPropertyOptional({ description: 'Proporção da imagem', enum: ['1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] })
