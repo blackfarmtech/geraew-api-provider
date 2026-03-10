@@ -29,6 +29,9 @@ export class VertexService {
         `[attempt ${attempt}] ${method.toUpperCase()} ${url}`,
       );
 
+      console.log(url);
+      console.log(body);
+
       try {
         const response = await axios({
           method,

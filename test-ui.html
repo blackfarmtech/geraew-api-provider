@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini Videos - API Tester</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --text: #e2e4ed;
+      --muted: #7b7f93;
+      --error: #ff5c7a;
+      --success: #00d4aa;
+      --warn: #ffb347;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    header h1 { font-size: 18px; font-weight: 700; color: var(--accent); }
+    header span { color: var(--muted); font-size: 12px; }
+
+    .config-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .config-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    .config-bar input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    .config-bar input[name="base-url"] { width: 200px; }
+    .config-bar input[name="api-key"] { width: 280px; }
+
+    .layout {
+      display: flex;
+      height: calc(100vh - 100px);
+    }
+
+    nav {
+      width: 220px;
+      min-width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    nav .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      padding: 8px 16px 4px;
+    }
+
+    nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 16px;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    nav button:hover { background: rgba(108,99,255,0.08); color: var(--accent); }
+    nav button.active { border-left-color: var(--accent); background: rgba(108,99,255,0.12); color: var(--accent); font-weight: 600; }
+
+    nav .method-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-right: 6px;
+      font-family: monospace;
+    }
+    .badge-get { background: rgba(0,212,170,0.2); color: var(--success); }
+    .badge-post { background: rgba(108,99,255,0.2); color: var(--accent); }
+    .badge-delete { background: rgba(255,92,122,0.2); color: var(--error); }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .panel-header {
+      margin-bottom: 20px;
+    }
+
+    .panel-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .panel-header .route {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-grid { display: grid; gap: 14px; max-width: 700px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .field small { font-size: 11px; color: var(--muted); }
+
+    input[type="text"], input[type="number"], textarea, select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    textarea { min-height: 80px; resize: vertical; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .checkbox-field input { width: auto; }
+    .checkbox-field span { font-size: 13px; }
+
+    .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #7c73ff; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-danger { background: var(--error); color: #fff; }
+    .btn-danger:hover { background: #ff3d60; }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .response-section {
+      margin-top: 24px;
+      max-width: 700px;
+    }
+
+    .response-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .response-header span { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .status-ok { background: rgba(0,212,170,0.15); color: var(--success); }
+    .status-err { background: rgba(255,92,122,0.15); color: var(--error); }
+    .status-pending { background: rgba(255,179,71,0.15); color: var(--warn); }
+
+    .response-body {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow-y: auto;
+      color: #c8d0e8;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(108,99,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .image-upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .image-upload-area:hover { border-color: var(--accent); }
+    .image-upload-area input { display: none; }
+    .image-upload-area .preview { max-width: 100%; max-height: 160px; border-radius: 6px; margin-top: 10px; }
+
+    .media-result { margin-top: 16px; }
+    .media-result video, .media-result img {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .cred-list { max-width: 700px; }
+    .cred-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cred-item .info { font-size: 13px; }
+    .cred-item .info strong { display: block; margin-bottom: 2px; }
+    .cred-item .info small { color: var(--muted); font-family: monospace; font-size: 11px; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    .poll-section {
+      background: rgba(255,179,71,0.05);
+      border: 1px solid rgba(255,179,71,0.2);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      max-width: 700px;
+    }
+    .poll-section h3 { font-size: 14px; color: var(--warn); margin-bottom: 12px; }
+
+    .tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .tag-active { background: rgba(0,212,170,0.15); color: var(--success); }
+    .tag-exhausted { background: rgba(255,92,122,0.15); color: var(--error); }
+
+    .accounts-grid { display: grid; gap: 8px; }
+    .account-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Gemini Videos API</h1>
+  <span>Test UI</span>
+</header>
+
+<div class="config-bar">
+  <label>Base URL</label>
+  <input name="base-url" value="http://localhost:3001/api" />
+  <label>API Key (x-api-key)</label>
+  <input name="api-key" type="text" placeholder="IsSRaionIXymgw1GHyYBWD1u8gBujwIM" />
+</div>
+
+<div class="layout">
+  <nav>
+    <div class="section-label">Status</div>
+    <button class="active" data-panel="status">
+      <span class="method-badge badge-get">GET</span>/status
+    </button>
+
+    <div class="section-label">Video</div>
+    <button data-panel="text-to-video">
+      <span class="method-badge badge-post">POST</span>Text to Video
+    </button>
+    <button data-panel="image-to-video">
+      <span class="method-badge badge-post">POST</span>Image to Video
+    </button>
+    <button data-panel="video-with-refs">
+      <span class="method-badge badge-post">POST</span>Video + Refs
+    </button>
+    <button data-panel="video-status">
+      <span class="method-badge badge-post">POST</span>Video Status
+    </button>
+
+    <div class="section-label">Image</div>
+    <button data-panel="imagen">
+      <span class="method-badge badge-post">POST</span>Imagen Generate
+    </button>
+    <button data-panel="gemini-image">
+      <span class="method-badge badge-post">POST</span>Gemini Image
+    </button>
+
+    <div class="section-label">Credentials</div>
+    <button data-panel="creds-list">
+      <span class="method-badge badge-get">GET</span>List Credentials
+    </button>
+    <button data-panel="creds-add">
+      <span class="method-badge badge-post">POST</span>Add Credential
+    </button>
+    <button data-panel="creds-delete">
+      <span class="method-badge badge-delete">DEL</span>Delete Credential
+    </button>
+  </nav>
+
+  <main>
+
+    <!-- STATUS -->
+    <div id="panel-status" class="panel active">
+      <div class="panel-header">
+        <h2>Account Status</h2>
+        <div class="route"><span class="method-badge badge-get">GET</span>/status</div>
+      </div>
+      <button class="btn btn-primary" onclick="req('status','GET','/status')">Check Status</button>
+      <div class="response-section" id="res-status"></div>
+    </div>
+
+    <!-- TEXT TO VIDEO -->
+    <div id="panel-text-to-video" class="panel">
+      <div class="panel-header">
+        <h2>Text to Video</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/video/generate-text-to-video</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prompt *</label>
+          <textarea id="ttv-prompt" placeholder="A cinematic drone shot of a forest at sunrise..."></textarea>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Model</label>
+            <select id="ttv-model">
+              <option value="">Default</option>
+              <option value="veo-3.1-generate-preview">veo-3.1-generate-preview</option>
+              <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Duration (seconds)</label>
+            <select id="ttv-duration">
+              <option value="">Default</option>
+              <option value="4">4s</option>
+              <option value="6">6s</option>
+              <option value="8">8s</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Aspect Ratio</label>
+            <select id="ttv-aspect">
+              <option value="">Default</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Resolution</label>
+            <select id="ttv-resolution">
+              <option value="">Default</option>
+              <option value="720p">720p</option>
+              <option value="1080p">1080p</option>
+              <option value="4K">4K</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Sample Count</label>
+            <input type="number" id="ttv-samples" min="1" max="4" placeholder="1" />
+          </div>
+          <div class="field" style="justify-content: flex-end; padding-bottom: 2px;">
+            <label class="checkbox-field">
+              <input type="checkbox" id="ttv-audio" checked />
+              <span>Generate Audio</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Negative Prompt</label>
+          <input type="text" id="ttv-negative" placeholder="blur, low quality, watermark..." />
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitTextToVideo()">Generate Video</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-text-to-video"></div>
+      <div id="poll-text-to-video"></div>
+    </div>
+
+    <!-- IMAGE TO VIDEO -->
+    <div id="panel-image-to-video" class="panel">
+      <div class="panel-header">
+        <h2>Image to Video</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/video/generate-image-to-video</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prompt *</label>
+          <textarea id="itv-prompt" placeholder="The character slowly turns and smiles..."></textarea>
+        </div>
+        <div class="field">
+          <label>First Frame (image) *</label>
+          <div class="image-upload-area" onclick="document.getElementById('itv-first-input').click()">
+            <input type="file" id="itv-first-input" accept="image/*" onchange="loadImage(this,'itv-first-preview','itv-first-b64')" />
+            <span id="itv-first-label">Click to upload image</span>
+            <img id="itv-first-preview" class="preview" style="display:none" />
+          </div>
+          <input type="hidden" id="itv-first-b64" />
+        </div>
+        <div class="field">
+          <label>First Frame Mime Type *</label>
+          <select id="itv-first-mime">
+            <option value="image/jpeg">image/jpeg</option>
+            <option value="image/png">image/png</option>
+            <option value="image/webp">image/webp</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Last Frame (optional)</label>
+          <div class="image-upload-area" onclick="document.getElementById('itv-last-input').click()">
+            <input type="file" id="itv-last-input" accept="image/*" onchange="loadImage(this,'itv-last-preview','itv-last-b64')" />
+            <span id="itv-last-label">Click to upload image (optional)</span>
+            <img id="itv-last-preview" class="preview" style="display:none" />
+          </div>
+          <input type="hidden" id="itv-last-b64" />
+        </div>
+        <div class="field">
+          <label>Last Frame Mime Type</label>
+          <select id="itv-last-mime">
+            <option value="image/jpeg">image/jpeg</option>
+            <option value="image/png">image/png</option>
+            <option value="image/webp">image/webp</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Model</label>
+            <select id="itv-model">
+              <option value="">Default</option>
+              <option value="veo-3.1-generate-preview">veo-3.1-generate-preview</option>
+              <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Duration (seconds)</label>
+            <select id="itv-duration">
+              <option value="">Default</option>
+              <option value="4">4s</option>
+              <option value="6">6s</option>
+              <option value="8">8s</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Aspect Ratio</label>
+            <select id="itv-aspect">
+              <option value="">Default</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Resolution</label>
+            <select id="itv-resolution">
+              <option value="">Default</option>
+              <option value="720p">720p</option>
+              <option value="1080p">1080p</option>
+              <option value="4K">4K</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Sample Count</label>
+            <input type="number" id="itv-samples" min="1" max="4" placeholder="1" />
+          </div>
+          <div class="field" style="justify-content: flex-end; padding-bottom: 4px;">
+            <label class="checkbox-field">
+              <input type="checkbox" id="itv-audio" checked />
+              <span>Generate Audio</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Negative Prompt</label>
+          <input type="text" id="itv-negative" placeholder="blur, watermark..." />
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitImageToVideo()">Generate Video</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-image-to-video"></div>
+      <div id="poll-image-to-video"></div>
+    </div>
+
+    <!-- VIDEO WITH REFERENCES -->
+    <div id="panel-video-with-refs" class="panel">
+      <div class="panel-header">
+        <h2>Video with Reference Images</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/video/generate</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prompt *</label>
+          <textarea id="vwr-prompt" placeholder="The character walks through a neon-lit city..."></textarea>
+        </div>
+        <div class="field">
+          <label>Reference Image 1</label>
+          <div class="image-upload-area" onclick="document.getElementById('vwr-img1-input').click()">
+            <input type="file" id="vwr-img1-input" accept="image/*" onchange="loadImage(this,'vwr-img1-preview','vwr-img1-b64')" />
+            <span id="vwr-img1-label">Click to upload reference image</span>
+            <img id="vwr-img1-preview" class="preview" style="display:none" />
+          </div>
+          <input type="hidden" id="vwr-img1-b64" />
+          <div class="row" style="margin-top:8px">
+            <div class="field">
+              <label>Type</label>
+              <select id="vwr-img1-type">
+                <option value="asset">asset</option>
+                <option value="style">style</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Mime Type</label>
+              <select id="vwr-img1-mime">
+                <option value="image/jpeg">image/jpeg</option>
+                <option value="image/png">image/png</option>
+                <option value="image/webp">image/webp</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Model</label>
+            <select id="vwr-model">
+              <option value="">Default</option>
+              <option value="veo-3.1-generate-preview">veo-3.1-generate-preview</option>
+              <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Duration (seconds)</label>
+            <select id="vwr-duration">
+              <option value="">Default</option>
+              <option value="4">4s</option>
+              <option value="6">6s</option>
+              <option value="8">8s</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Aspect Ratio</label>
+            <select id="vwr-aspect">
+              <option value="">Default</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Resolution</label>
+            <select id="vwr-resolution">
+              <option value="">Default</option>
+              <option value="720p">720p</option>
+              <option value="1080p">1080p</option>
+              <option value="4K">4K</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Sample Count</label>
+            <input type="number" id="vwr-samples" min="1" max="4" placeholder="1" />
+          </div>
+          <div class="field" style="justify-content: flex-end; padding-bottom: 4px;">
+            <label class="checkbox-field">
+              <input type="checkbox" id="vwr-audio" checked />
+              <span>Generate Audio</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Negative Prompt</label>
+          <input type="text" id="vwr-negative" placeholder="blur, watermark..." />
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitVideoWithRefs()">Generate Video</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-video-with-refs"></div>
+      <div id="poll-video-with-refs"></div>
+    </div>
+
+    <!-- VIDEO STATUS -->
+    <div id="panel-video-status" class="panel">
+      <div class="panel-header">
+        <h2>Video Status (Poll)</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/video/status</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Operation Name *</label>
+          <input type="text" id="vs-operation" placeholder="projects/.../locations/.../operations/..." />
+          <small>Returned by video generation endpoints</small>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitVideoStatus()">Check Status</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-video-status"></div>
+      <div id="media-video-status" class="media-result"></div>
+    </div>
+
+    <!-- IMAGEN -->
+    <div id="panel-imagen" class="panel">
+      <div class="panel-header">
+        <h2>Imagen — Text to Image</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/image/generate</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prompt *</label>
+          <textarea id="img-prompt" placeholder="A photorealistic portrait of a futuristic city..."></textarea>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Count</label>
+            <input type="number" id="img-count" min="1" max="4" placeholder="1" />
+          </div>
+          <div class="field">
+            <label>Aspect Ratio</label>
+            <select id="img-aspect">
+              <option value="">Default</option>
+              <option value="1:1">1:1</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="4:3">4:3</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Person Generation</label>
+            <select id="img-person">
+              <option value="">Default</option>
+              <option value="dont_allow">dont_allow</option>
+              <option value="allow_adult">allow_adult</option>
+              <option value="allow_all">allow_all</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Safety Setting</label>
+            <select id="img-safety">
+              <option value="">Default</option>
+              <option value="block_low_and_above">block_low_and_above</option>
+              <option value="block_medium_and_above">block_medium_and_above</option>
+              <option value="block_only_high">block_only_high</option>
+              <option value="block_none">block_none</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Seed (optional)</label>
+            <input type="number" id="img-seed" placeholder="12345" />
+          </div>
+          <div class="field" style="justify-content: flex-end; padding-bottom: 4px;">
+            <label class="checkbox-field">
+              <input type="checkbox" id="img-enhance" />
+              <span>Enhance Prompt</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitImagen()">Generate Image</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-imagen"></div>
+      <div id="media-imagen" class="media-result"></div>
+    </div>
+
+    <!-- GEMINI IMAGE -->
+    <div id="panel-gemini-image" class="panel">
+      <div class="panel-header">
+        <h2>Gemini Image</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/image/generate-gemini</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prompt *</label>
+          <textarea id="gem-prompt" placeholder="Edit the image to add a sunset background..."></textarea>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select id="gem-model">
+            <option value="">Default</option>
+            <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview</option>
+            <option value="gemini-3.1-flash-image-preview">gemini-3.1-flash-image-preview</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Reference Image (optional)</label>
+          <div class="image-upload-area" onclick="document.getElementById('gem-img-input').click()">
+            <input type="file" id="gem-img-input" accept="image/*" onchange="loadImage(this,'gem-img-preview','gem-img-b64')" />
+            <span id="gem-img-label">Click to upload image</span>
+            <img id="gem-img-preview" class="preview" style="display:none" />
+          </div>
+          <input type="hidden" id="gem-img-b64" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Aspect Ratio</label>
+            <select id="gem-aspect">
+              <option value="">Default</option>
+              <option value="1:1">1:1</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Mime Type</label>
+            <select id="gem-mime">
+              <option value="image/jpeg">image/jpeg</option>
+              <option value="image/png">image/png</option>
+              <option value="image/webp">image/webp</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitGeminiImage()">Generate / Edit Image</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-gemini-image"></div>
+      <div id="media-gemini-image" class="media-result"></div>
+    </div>
+
+    <!-- CREDENTIALS LIST -->
+    <div id="panel-creds-list" class="panel">
+      <div class="panel-header">
+        <h2>List Credentials</h2>
+        <div class="route"><span class="method-badge badge-get">GET</span>/credentials</div>
+      </div>
+      <button class="btn btn-primary" onclick="loadCredentials()">Load Credentials</button>
+      <div class="response-section" id="res-creds-list"></div>
+      <div id="creds-display" class="cred-list" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ADD CREDENTIAL -->
+    <div id="panel-creds-add" class="panel">
+      <div class="panel-header">
+        <h2>Add Credential</h2>
+        <div class="route"><span class="method-badge badge-post">POST</span>/credentials</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Name *</label>
+          <input type="text" id="cred-name" placeholder="account1" />
+        </div>
+        <div class="field">
+          <label>Client ID *</label>
+          <input type="text" id="cred-clientId" placeholder="1234567890.apps.googleusercontent.com" />
+        </div>
+        <div class="field">
+          <label>Client Secret *</label>
+          <input type="text" id="cred-clientSecret" placeholder="GOCSPX-..." />
+        </div>
+        <div class="field">
+          <label>Refresh Token *</label>
+          <textarea id="cred-refreshToken" placeholder="1//0..." style="min-height:60px"></textarea>
+        </div>
+        <div class="field">
+          <label>Quota Project ID *</label>
+          <input type="text" id="cred-quotaProjectId" placeholder="my-gcp-project-id" />
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="submitAddCredential()">Add Credential</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-creds-add"></div>
+    </div>
+
+    <!-- DELETE CREDENTIAL -->
+    <div id="panel-creds-delete" class="panel">
+      <div class="panel-header">
+        <h2>Delete Credential</h2>
+        <div class="route"><span class="method-badge badge-delete">DELETE</span>/credentials/:id</div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Credential ID *</label>
+          <input type="text" id="del-cred-id" placeholder="cuid..." />
+          <small>Use "List Credentials" to find the ID</small>
+        </div>
+        <div>
+          <button class="btn btn-danger" onclick="submitDeleteCredential()">Delete Credential</button>
+        </div>
+      </div>
+      <div class="response-section" id="res-creds-delete"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ── Navigation ──────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    });
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function getBase() {
+    return document.querySelector('input[name="base-url"]').value.replace(/\/$/, '');
+  }
+
+  function getKey() {
+    return document.querySelector('input[name="api-key"]').value.trim();
+  }
+
+  function showResponse(id, status, data) {
+    const el = document.getElementById('res-' + id);
+    const isOk = status >= 200 && status < 300;
+    const badgeClass = isOk ? 'status-ok' : 'status-err';
+    el.innerHTML = `
+      <div class="response-header">
+        <span>Response</span>
+        <span class="status-badge ${badgeClass}">HTTP ${status}</span>
+      </div>
+      <div class="response-body">${escHtml(JSON.stringify(data, null, 2))}</div>
+    `;
+  }
+
+  function showLoading(id) {
+    const el = document.getElementById('res-' + id);
+    el.innerHTML = `<div style="margin-top:16px;color:var(--muted)"><span class="loading"></span> Sending request...</div>`;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function req(id, method, path, body) {
+    showLoading(id);
+    const key = getKey();
+    const headers = { 'Content-Type': 'application/json' };
+    if (key) headers['x-api-key'] = key;
+    try {
+      const res = await fetch(getBase() + path, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      let data;
+      try { data = await res.json(); } catch { data = await res.text(); }
+      showResponse(id, res.status, data);
+      return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+      document.getElementById('res-' + id).innerHTML = `
+        <div class="response-header">
+          <span>Response</span>
+          <span class="status-badge status-err">Network Error</span>
+        </div>
+        <div class="response-body">${escHtml(err.message)}</div>
+      `;
+      return { ok: false, data: null };
+    }
+  }
+
+  function pick(obj) {
+    return Object.fromEntries(Object.entries(obj).filter(([,v]) => v !== '' && v !== null && v !== undefined));
+  }
+
+  function loadImage(input, previewId, b64Id) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const b64 = e.target.result.split(',')[1];
+      document.getElementById(b64Id).value = b64;
+      const preview = document.getElementById(previewId);
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      const label = document.getElementById(previewId.replace('-preview', '-label'));
+      if (label) label.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Auto-fill API key from URL hash or localStorage ──────────────────────
+  const savedKey = localStorage.getItem('api-key');
+  if (savedKey) document.querySelector('input[name="api-key"]').value = savedKey;
+  document.querySelector('input[name="api-key"]').addEventListener('input', e => {
+    localStorage.setItem('api-key', e.target.value);
+  });
+
+  // ── Video polling helper ─────────────────────────────────────────────────
+  async function pollOperation(operationName, containerId) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<div class="poll-section"><h3><span class="loading"></span> Polling for result...</h3><p style="color:var(--muted);font-size:12px;margin-top:4px">${escHtml(operationName)}</p></div>`;
+
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    const key = getKey();
+    const headers = { 'Content-Type': 'application/json' };
+    if (key) headers['x-api-key'] = key;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(getBase() + '/video/status', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ operationName }),
+        });
+        const data = await res.json();
+
+        if (data.done) {
+          clearInterval(interval);
+          let html = `<div class="poll-section"><h3 style="color:var(--success)">✓ Video Ready!</h3>`;
+          if (data.response?.videos) {
+            data.response.videos.forEach((v, i) => {
+              html += `<p style="font-size:12px;color:var(--muted);margin-top:8px">Video ${i+1}: ${escHtml(v.uri || '')}</p>`;
+              if (v.uri) html += `<video controls style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border)"><source src="${escHtml(v.uri)}"></video>`;
+            });
+          }
+          html += `<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">Full response</summary><div class="response-body" style="margin-top:8px">${escHtml(JSON.stringify(data, null, 2))}</div></details></div>`;
+          el.innerHTML = html;
+        } else if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          el.innerHTML = `<div class="poll-section"><h3 style="color:var(--error)">Timeout — still pending after ${maxAttempts} polls</h3><div class="response-body" style="margin-top:8px">${escHtml(JSON.stringify(data, null, 2))}</div></div>`;
+        } else {
+          el.querySelector('h3').innerHTML = `<span class="loading"></span> Polling... (attempt ${attempts}/${maxAttempts})`;
+        }
+      } catch (err) {
+        clearInterval(interval);
+        el.innerHTML = `<div class="poll-section"><h3 style="color:var(--error)">Poll error: ${escHtml(err.message)}</h3></div>`;
+      }
+    }, 5000);
+  }
+
+  // ── Submit handlers ──────────────────────────────────────────────────────
+  async function submitTextToVideo() {
+    const body = pick({
+      prompt: document.getElementById('ttv-prompt').value.trim(),
+      model: document.getElementById('ttv-model').value,
+      duration_seconds: document.getElementById('ttv-duration').value ? Number(document.getElementById('ttv-duration').value) : undefined,
+      aspect_ratio: document.getElementById('ttv-aspect').value,
+      resolution: document.getElementById('ttv-resolution').value,
+      sample_count: document.getElementById('ttv-samples').value ? Number(document.getElementById('ttv-samples').value) : undefined,
+      generate_audio: document.getElementById('ttv-audio').checked,
+      negative_prompt: document.getElementById('ttv-negative').value.trim(),
+    });
+    if (!body.prompt) return alert('Prompt is required');
+    const result = await req('text-to-video', 'POST', '/video/generate-text-to-video', body);
+    if (result.ok && result.data?.operationName) {
+      pollOperation(result.data.operationName, 'poll-text-to-video');
+    }
+  }
+
+  async function submitImageToVideo() {
+    const firstB64 = document.getElementById('itv-first-b64').value;
+    if (!firstB64) return alert('First frame image is required');
+    const lastB64 = document.getElementById('itv-last-b64').value;
+    const body = pick({
+      prompt: document.getElementById('itv-prompt').value.trim(),
+      model: document.getElementById('itv-model').value,
+      duration_seconds: document.getElementById('itv-duration').value ? Number(document.getElementById('itv-duration').value) : undefined,
+      aspect_ratio: document.getElementById('itv-aspect').value,
+      negative_prompt: document.getElementById('itv-negative').value.trim(),
+      first_frame: firstB64 || undefined,
+      first_frame_mime_type: document.getElementById('itv-first-mime').value,
+      last_frame: lastB64 || undefined,
+      last_frame_mime_type: lastB64 ? document.getElementById('itv-last-mime').value : undefined,
+      resolution: document.getElementById('itv-resolution').value,
+      sample_count: document.getElementById('itv-samples').value ? Number(document.getElementById('itv-samples').value) : undefined,
+      generate_audio: document.getElementById('itv-audio').checked,
+    });
+    if (!body.prompt) return alert('Prompt is required');
+    const result = await req('image-to-video', 'POST', '/video/generate-image-to-video', body);
+    if (result.ok && result.data?.operationName) {
+      pollOperation(result.data.operationName, 'poll-image-to-video');
+    }
+  }
+
+  async function submitVideoWithRefs() {
+    const img1B64 = document.getElementById('vwr-img1-b64').value;
+    const body = pick({
+      prompt: document.getElementById('vwr-prompt').value.trim(),
+      model: document.getElementById('vwr-model').value,
+      duration_seconds: document.getElementById('vwr-duration').value ? Number(document.getElementById('vwr-duration').value) : undefined,
+      aspect_ratio: document.getElementById('vwr-aspect').value,
+      resolution: document.getElementById('vwr-resolution').value,
+      sample_count: document.getElementById('vwr-samples').value ? Number(document.getElementById('vwr-samples').value) : undefined,
+      generate_audio: document.getElementById('vwr-audio').checked,
+      negative_prompt: document.getElementById('vwr-negative').value.trim(),
+    });
+    if (!body.prompt) return alert('Prompt is required');
+    if (img1B64) {
+      body.reference_images = [{
+        base64: img1B64,
+        reference_type: document.getElementById('vwr-img1-type').value,
+        mime_type: document.getElementById('vwr-img1-mime').value,
+      }];
+    }
+    const result = await req('video-with-refs', 'POST', '/video/generate', body);
+    if (result.ok && result.data?.operationName) {
+      pollOperation(result.data.operationName, 'poll-video-with-refs');
+    }
+  }
+
+  async function submitVideoStatus() {
+    const operationName = document.getElementById('vs-operation').value.trim();
+    if (!operationName) return alert('Operation name is required');
+    const result = await req('video-status', 'POST', '/video/status', { operationName });
+    const mediaEl = document.getElementById('media-video-status');
+    if (result.ok && result.data?.response?.videos) {
+      let html = '';
+      result.data.response.videos.forEach((v, i) => {
+        if (v.uri) html += `<video controls style="max-width:100%;border-radius:8px;margin-top:12px;border:1px solid var(--border)"><source src="${escHtml(v.uri)}"></video>`;
+      });
+      mediaEl.innerHTML = html;
+    }
+  }
+
+  async function submitImagen() {
+    const body = pick({
+      prompt: document.getElementById('img-prompt').value.trim(),
+      count: document.getElementById('img-count').value ? Number(document.getElementById('img-count').value) : undefined,
+      aspect_ratio: document.getElementById('img-aspect').value,
+      person_generation: document.getElementById('img-person').value,
+      safety_setting: document.getElementById('img-safety').value,
+      seed: document.getElementById('img-seed').value ? Number(document.getElementById('img-seed').value) : undefined,
+      enhance_prompt: document.getElementById('img-enhance').checked || undefined,
+    });
+    if (!body.prompt) return alert('Prompt is required');
+    const result = await req('imagen', 'POST', '/image/generate', body);
+    const mediaEl = document.getElementById('media-imagen');
+    if (result.ok && result.data) {
+      const images = Array.isArray(result.data) ? result.data : result.data.images || [];
+      mediaEl.innerHTML = images.map(img => {
+        if (typeof img === 'string' && img.startsWith('data:')) {
+          return `<img src="${escHtml(img)}" style="max-width:100%;border-radius:8px;margin-top:12px" />`;
+        }
+        if (img.base64) {
+          const mime = img.mimeType || 'image/png';
+          return `<img src="data:${mime};base64,${img.base64}" style="max-width:100%;border-radius:8px;margin-top:12px" />`;
+        }
+        if (img.uri) return `<img src="${escHtml(img.uri)}" style="max-width:100%;border-radius:8px;margin-top:12px" />`;
+        return '';
+      }).join('');
+    }
+  }
+
+  async function submitGeminiImage() {
+    const imgB64 = document.getElementById('gem-img-b64').value;
+    const body = pick({
+      prompt: document.getElementById('gem-prompt').value.trim(),
+      model: document.getElementById('gem-model').value,
+      aspect_ratio: document.getElementById('gem-aspect').value,
+      mime_type: document.getElementById('gem-mime').value,
+    });
+    if (!body.prompt) return alert('Prompt is required');
+    if (imgB64) {
+      body.images = [{ data: imgB64, mimeType: document.getElementById('gem-mime').value }];
+    }
+    const result = await req('gemini-image', 'POST', '/image/generate-gemini', body);
+    const mediaEl = document.getElementById('media-gemini-image');
+    if (result.ok && result.data) {
+      const images = Array.isArray(result.data) ? result.data : result.data.images || [];
+      mediaEl.innerHTML = images.map(img => {
+        if (typeof img === 'string' && img.startsWith('data:')) {
+          return `<img src="${escHtml(img)}" style="max-width:100%;border-radius:8px;margin-top:12px" />`;
+        }
+        if (img.base64 || img.data) {
+          const b = img.base64 || img.data;
+          const mime = img.mimeType || 'image/png';
+          return `<img src="data:${mime};base64,${b}" style="max-width:100%;border-radius:8px;margin-top:12px" />`;
+        }
+        return '';
+      }).join('');
+    }
+  }
+
+  async function loadCredentials() {
+    const result = await req('creds-list', 'GET', '/credentials');
+    if (result.ok && Array.isArray(result.data)) {
+      const el = document.getElementById('creds-display');
+      if (result.data.length === 0) {
+        el.innerHTML = '<p style="color:var(--muted);margin-top:8px">No credentials found.</p>';
+      } else {
+        el.innerHTML = result.data.map(c => `
+          <div class="cred-item">
+            <div class="info">
+              <strong>${escHtml(c.name || c.id)}</strong>
+              <small>ID: ${escHtml(c.id)} | Project: ${escHtml(c.quotaProjectId || '—')}</small>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="tag ${c.active ? 'tag-active' : ''}">${c.active ? 'active' : 'inactive'}</span>
+              <button class="btn btn-danger" style="padding:5px 12px;font-size:12px" onclick="quickDelete('${escHtml(c.id)}')">Delete</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  async function submitAddCredential() {
+    const body = pick({
+      name: document.getElementById('cred-name').value.trim(),
+      clientId: document.getElementById('cred-clientId').value.trim(),
+      clientSecret: document.getElementById('cred-clientSecret').value.trim(),
+      refreshToken: document.getElementById('cred-refreshToken').value.trim(),
+      quotaProjectId: document.getElementById('cred-quotaProjectId').value.trim(),
+    });
+    await req('creds-add', 'POST', '/credentials', body);
+  }
+
+  async function submitDeleteCredential() {
+    const id = document.getElementById('del-cred-id').value.trim();
+    if (!id) return alert('Credential ID is required');
+    await req('creds-delete', 'DELETE', `/credentials/${encodeURIComponent(id)}`);
+  }
+
+  async function quickDelete(id) {
+    if (!confirm(`Delete credential ${id}?`)) return;
+    const key = getKey();
+    const headers = {};
+    if (key) headers['x-api-key'] = key;
+    try {
+      const res = await fetch(getBase() + `/credentials/${encodeURIComponent(id)}`, { method: 'DELETE', headers });
+      alert(res.ok ? 'Deleted!' : `Error: ${res.status}`);
+      if (res.ok) loadCredentials();
+    } catch (e) {
+      alert('Network error: ' + e.message);
+    }
+  }
+</script>
+</body>
+</html>

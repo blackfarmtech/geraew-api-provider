@@ -1,7 +1,9 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { VideoService } from './video.service';
-import { GenerateVideoDto } from './dto/generate-video.dto';
+import { GenerateVideoWithReferencesDto } from './dto/generate-video-with-references.dto';
+import { GenerateVideoTextToVideoDto } from './dto/generate-video-text-to-video.dto';
+import { GenerateVideoImageToVideoDto } from './dto/generate-video-image-to-video.dto';
 
 @ApiTags('Video')
 @ApiSecurity('x-api-key')
@@ -9,13 +11,34 @@ import { GenerateVideoDto } from './dto/generate-video.dto';
 export class VideoController {
   constructor(private readonly videoService: VideoService) { }
 
-  @Post('generate')
+  @Post('generate-text-to-video')
   @ApiOperation({ summary: 'Gerar vídeo', description: 'Gera um vídeo a partir de um prompt de texto. Modos suportados: text-to-video, image-to-video (image_base64 como primeiro frame), first+last frame (image_base64 + last_frame_base64), imagens de referência asset (até 3 imagens do mesmo sujeito) e style (1 imagem de estilo, apenas veo-2.0-generate-exp). Retorna um operationName para polling do status.' })
   @ApiResponse({ status: 201, description: 'Geração iniciada com sucesso', schema: { example: { operationName: 'projects/.../operations/uuid' } } })
   @ApiResponse({ status: 400, description: 'Dados de entrada inválidos' })
   @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
-  async generate(@Body() dto: GenerateVideoDto) {
-    return this.videoService.generateVideo(dto);
+  async generateTextToVideo(@Body() dto: GenerateVideoTextToVideoDto) {
+    return this.videoService.generateVideoTextToVideo(dto);
+  }
+
+
+  @Post('generate-image-to-video')
+  @ApiOperation({ summary: 'Gerar vídeo', description: 'Gera um vídeo a partir de um prompt de texto. Modos suportados: text-to-video, image-to-video (image_base64 como primeiro frame), first+last frame (image_base64 + last_frame_base64), imagens de referência asset (até 3 imagens do mesmo sujeito) e style (1 imagem de estilo, apenas veo-2.0-generate-exp). Retorna um operationName para polling do status.' })
+  @ApiResponse({ status: 201, description: 'Geração iniciada com sucesso', schema: { example: { operationName: 'projects/.../operations/uuid' } } })
+  @ApiResponse({ status: 400, description: 'Dados de entrada inválidos' })
+  @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
+  async generateImageToVideo(@Body() dto: GenerateVideoImageToVideoDto) {
+    return this.videoService.generateVideoImageToVideo(dto);
+  }
+
+
+
+  @Post('generate-references')
+  @ApiOperation({ summary: 'Gerar vídeo', description: 'Gera um vídeo a partir de um prompt de texto. Modos suportados: text-to-video, image-to-video (image_base64 como primeiro frame), first+last frame (image_base64 + last_frame_base64), imagens de referência asset (até 3 imagens do mesmo sujeito) e style (1 imagem de estilo, apenas veo-2.0-generate-exp). Retorna um operationName para polling do status.' })
+  @ApiResponse({ status: 201, description: 'Geração iniciada com sucesso', schema: { example: { operationName: 'projects/.../operations/uuid' } } })
+  @ApiResponse({ status: 400, description: 'Dados de entrada inválidos' })
+  @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
+  async generate(@Body() dto: GenerateVideoWithReferencesDto) {
+    return this.videoService.generateVideoWithRefereces(dto);
   }
 
   @Post('status')

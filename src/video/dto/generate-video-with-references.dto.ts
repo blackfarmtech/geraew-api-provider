@@ -27,7 +27,7 @@ export class ReferenceImageDto {
   reference_type: 'asset' | 'style';
 }
 
-export class GenerateVideoDto {
+export class GenerateVideoWithReferencesDto {
   @ApiProperty({ description: 'Prompt de texto para gerar o vídeo', example: 'A cinematic aerial shot of a coastal city at sunset' })
   @IsString()
   prompt: string;
@@ -37,11 +37,6 @@ export class GenerateVideoDto {
   @IsString()
   @IsIn(['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'])
   model?: string;
-
-  @ApiPropertyOptional({ description: 'Região do Vertex AI', default: 'us-central1', example: 'us-central1' })
-  @IsOptional()
-  @IsString()
-  location?: string;
 
   @ApiPropertyOptional({ description: 'Duração do vídeo em segundos', default: 8, example: 8 })
   @IsOptional()
@@ -77,43 +72,6 @@ export class GenerateVideoDto {
   @IsOptional()
   @IsString()
   negative_prompt?: string;
-
-  @ApiPropertyOptional({ description: 'Política de geração de pessoas', enum: ['allow_adult', 'dont_allow', 'allow_all'], default: 'allow_adult' })
-  @IsOptional()
-  @IsString()
-  @IsIn(['allow_adult', 'dont_allow', 'allow_all'])
-  person_generation?: string;
-
-  @ApiPropertyOptional({ description: 'Seed para reprodutibilidade', example: 42 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  seed?: number;
-
-  @ApiPropertyOptional({ description: 'URI do GCS para armazenar o resultado' })
-  @IsOptional()
-  @IsString()
-  storage_uri?: string;
-
-  @ApiPropertyOptional({ description: 'Imagem de input em base64 (para image-to-video)' })
-  @IsOptional()
-  @IsString()
-  image_base64?: string;
-
-  @ApiPropertyOptional({ description: 'MIME type da imagem de input', default: 'image/jpeg', example: 'image/jpeg' })
-  @IsOptional()
-  @IsString()
-  image_mime_type?: string;
-
-  @ApiPropertyOptional({ description: 'Último frame em base64 (para controle de final do vídeo)' })
-  @IsOptional()
-  @IsString()
-  last_frame_base64?: string;
-
-  @ApiPropertyOptional({ description: 'MIME type do último frame', default: 'image/jpeg' })
-  @IsOptional()
-  @IsString()
-  last_frame_mime_type?: string;
 
   @ApiPropertyOptional({
     description: 'Imagens de referência (asset: até 3 imagens do mesmo sujeito, style: 1 imagem de estilo). Style só funciona com veo-2.0-generate-exp.',

@@ -1,33 +1,117 @@
 import { Injectable } from '@nestjs/common';
 import { VertexService } from '../vertex/vertex.service';
-import { GenerateVideoDto } from './dto/generate-video.dto';
+import { GenerateVideoWithReferencesDto } from './dto/generate-video-with-references.dto';
+import { GenerateVideoTextToVideoDto } from './dto/generate-video-text-to-video.dto';
+import { GenerateVideoImageToVideoDto } from './dto/generate-video-image-to-video.dto';
 
 
-const DEFAULT_LOCATION = 'us-central1';
 
 @Injectable()
 export class VideoService {
   constructor(private readonly vertexService: VertexService) { }
 
-  async generateVideo(dto: GenerateVideoDto) {
+  async generateVideoTextToVideo(dto: GenerateVideoTextToVideoDto) {
     const model = dto.model
-    const location = dto.location || DEFAULT_LOCATION;
+    const location = process.env.LOCATION
 
     const instance: Record<string, any> = { prompt: dto.prompt };
 
-    if (dto.image_base64) {
-      instance.image = {
-        bytesBase64Encoded: dto.image_base64,
-        mimeType: dto.image_mime_type || 'image/jpeg',
+    const parameters: Record<string, any> = {
+      aspectRatio: dto.aspect_ratio,
+      durationSeconds: dto.duration_seconds,
+      sampleCount: dto.sample_count,
+      resolution: dto.resolution,
+      generateAudio: dto.generate_audio,
+      storageUri: process.env.BUCKET_S3,
+      personGeneration: 'allow_all',
+    };
+
+    if (dto.negative_prompt) {
+      parameters.negativePrompt = dto.negative_prompt;
+    }
+
+
+    const body = {
+      instances: [instance],
+      parameters,
+    };
+
+    const path =
+      `/v1/projects/{PROJECT_ID}/locations/${location}` +
+      `/publishers/google/models/${model}:predictLongRunning`;
+
+    const data = await this.vertexService.proxyRequest(
+      'POST',
+      path,
+      body,
+      location,
+      true,
+    );
+
+    return { operationName: data.name };
+  }
+
+  async generateVideoImageToVideo(dto: GenerateVideoImageToVideoDto) {
+    const model = dto.model
+    const location = process.env.LOCATION
+
+    const instance: Record<string, any> = { prompt: dto.prompt };
+
+
+    instance.image = {
+      bytesBase64Encoded: dto.first_frame,
+      mimeType: "image/png",
+    };
+
+
+    if (dto.last_frame) {
+      instance.lastFrame = {
+        bytesBase64Encoded: dto.last_frame,
+        mimeType: "image/png"
       };
     }
 
-    if (dto.last_frame_base64) {
-      instance.lastFrame = {
-        bytesBase64Encoded: dto.last_frame_base64,
-        mimeType: dto.last_frame_mime_type || 'image/jpeg',
-      };
+
+
+    const parameters: Record<string, any> = {
+      aspectRatio: dto.aspect_ratio,
+      durationSeconds: dto.duration_seconds,
+      sampleCount: dto.sample_count,
+      resolution: dto.resolution,
+      generateAudio: dto.generate_audio ?? true,
+      storageUri: process.env.BUCKET_S3,
+      personGeneration: 'allow_all',
+    };
+
+    if (dto.negative_prompt) {
+      parameters.negativePrompt = dto.negative_prompt;
     }
+
+    const body = {
+      instances: [instance],
+      parameters,
+    };
+
+    const path =
+      `/v1/projects/{PROJECT_ID}/locations/${location}` +
+      `/publishers/google/models/${model}:predictLongRunning`;
+
+    const data = await this.vertexService.proxyRequest(
+      'POST',
+      path,
+      body,
+      location,
+      true,
+    );
+
+    return { operationName: data.name };
+  }
+  async generateVideoWithRefereces(dto: GenerateVideoWithReferencesDto) {
+    const model = dto.model
+    const location = process.env.LOCATION
+
+    const instance: Record<string, any> = { prompt: dto.prompt };
+
 
     if (dto.reference_images?.length) {
       instance.referenceImages = dto.reference_images.map((ref) => ({
@@ -39,24 +123,23 @@ export class VideoService {
       }));
     }
 
+
+
+
     const parameters: Record<string, any> = {
-      aspectRatio: dto.aspect_ratio || '16:9',
-      durationSeconds: dto.duration_seconds ?? 8,
-      sampleCount: dto.sample_count ?? 1,
-      resolution: dto.resolution || '720p',
+      aspectRatio: dto.aspect_ratio,
+      durationSeconds: dto.duration_seconds,
+      sampleCount: dto.sample_count,
+      resolution: dto.resolution,
       generateAudio: dto.generate_audio ?? true,
-      personGeneration: dto.person_generation || 'allow_adult',
+      storageUri: process.env.BUCKET_S3,
+      personGeneration: 'allow_all',
     };
 
     if (dto.negative_prompt) {
       parameters.negativePrompt = dto.negative_prompt;
     }
-    if (dto.seed !== undefined) {
-      parameters.seed = dto.seed;
-    }
-    if (dto.storage_uri) {
-      parameters.storageUri = dto.storage_uri;
-    }
+
 
     const body = {
       instances: [instance],
