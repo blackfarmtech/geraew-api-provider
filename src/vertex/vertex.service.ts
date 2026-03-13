@@ -29,9 +29,10 @@ export class VertexService {
         `[attempt ${attempt}] ${method.toUpperCase()} ${url}`,
       );
 
+      console.log(JSON.stringify(body))
+
       console.log(url);
       console.log(body);
-
       try {
         const response = await axios({
           method,
@@ -39,9 +40,10 @@ export class VertexService {
           data: body || undefined,
           headers: {
             Authorization: `Bearer ${token}`,
+
             'Content-Type': 'application/json',
           },
-          timeout: 120_000,
+          timeout: 800_000,
         });
 
         console.log(response.data);
@@ -50,7 +52,7 @@ export class VertexService {
         const status = error.response?.status;
         const errorData = error.response?.data;
         const errorText = JSON.stringify(errorData || '');
-
+        console.log(error)
         this.logger.warn(
           `Request failed (attempt ${attempt}): status=${status} error=${errorText.substring(0, 200)}`,
         );

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { VertexService } from '../vertex/vertex.service';
 
-const DEFAULT_LOCATION = 'us-central1';
+const DEFAULT_LOCATION = 'global';
 
 
 
@@ -70,6 +70,7 @@ export class ImageService {
     aspect_ratio?: string;
     image_size?: string;
     mime_type?: string;
+    person_generation?: string;
     images?: Array<{ base64: string; mime_type?: string }>;
   }) {
     const location = DEFAULT_LOCATION;
@@ -82,15 +83,22 @@ export class ImageService {
       imageConfig.imageOutputOptions = { mimeType: dto.mime_type };
     }
 
-    console.log("imageConfig", imageConfig);
+    imageConfig.personGeneration = dto.person_generation || 'ALLOW_ALL';
 
     const generationConfig: Record<string, any> = {
-      responseModalities: ['TEXT', 'IMAGE'],
+      temperature: 1,
+      maxOutputTokens: 32768,
+      topP: 0.95,
+      responseModalities: ['IMAGE'],
+      imageConfig,
     };
 
-    if (Object.keys(imageConfig).length > 0) {
-      generationConfig.imageConfig = imageConfig;
-    }
+    const safetySettings = [
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
+    ];
 
     const userParts: any[] = [];
     if (dto.images?.length) {
@@ -113,6 +121,7 @@ export class ImageService {
         },
       ],
       generationConfig,
+      safetySettings,
     };
 
     // if (dto.system_instruction) {
@@ -123,7 +132,7 @@ export class ImageService {
 
     const path =
       '/v1/projects/{PROJECT_ID}/locations/' +
-      `${location}/publishers/google/models/${model}:generateContent`;
+      `${location}/publishers/google/models/${model}:streamGenerateContent`;
 
     const data = await this.vertexService.proxyRequest(
       'POST',
@@ -132,7 +141,9 @@ export class ImageService {
       location,
     );
     console.log(data);
-    const candidate = data.candidates?.[0];
+    // streamGenerateContent returns an array of chunks
+    const chunks = Array.isArray(data) ? data : [data];
+    const candidate = chunks[0]?.candidates?.[0];
     if (!candidate?.content?.parts) {
       throw new BadRequestException(
         'No content generated. Try a different prompt.',
@@ -144,16 +155,20 @@ export class ImageService {
       | { type: 'image'; base64: string; mimeType: string }
     > = [];
 
-    for (const part of candidate.content.parts) {
-      if (part.text) {
-        parts.push({ type: 'text', text: part.text });
-      }
-      if (part.inlineData) {
-        parts.push({
-          type: 'image',
-          base64: part.inlineData.data,
-          mimeType: part.inlineData.mimeType,
-        });
+    for (const chunk of chunks) {
+      const cand = chunk?.candidates?.[0];
+      if (!cand?.content?.parts) continue;
+      for (const part of cand.content.parts) {
+        if (part.text) {
+          parts.push({ type: 'text', text: part.text });
+        }
+        if (part.inlineData) {
+          parts.push({
+            type: 'image',
+            base64: part.inlineData.data,
+            mimeType: part.inlineData.mimeType,
+          });
+        }
       }
     }
 
