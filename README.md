@@ -1,7 +1,6 @@
  Guia de Integração — API de Geração de Mídia                                                                                                                             
                                                                                                                                                                            
-  Base URL: http://localhost:3001/api                                                                                                                                     
-                                                                                                                                                                           
+
   ---                                                       
   1. VÍDEO (Assíncrono — requer polling)
 
