@@ -31,7 +31,7 @@ export class ImageService {
     add_watermark?: boolean;
     mime_type?: string;
     location?: string;
-  }) {
+  }, requestLogId?: string) {
     const location = dto.location || DEFAULT_LOCATION;
     const model = dto.model
 
@@ -61,7 +61,7 @@ export class ImageService {
       '/v1/projects/{PROJECT_ID}/locations/' +
       `${location}/publishers/google/models/${model}:predict`;
 
-    return this.vertexService.proxyRequest('POST', path, body, location);
+    return this.vertexService.proxyRequest('POST', path, body, location, false, requestLogId);
   }
 
   async generateGeminiImage(dto: {
@@ -72,7 +72,7 @@ export class ImageService {
     mime_type?: string;
     person_generation?: string;
     images?: Array<{ base64: string; mime_type?: string }>;
-  }) {
+  }, requestLogId?: string) {
     const location = DEFAULT_LOCATION;
     const model = dto.model
 
@@ -139,8 +139,9 @@ export class ImageService {
       path,
       body,
       location,
+      false,
+      requestLogId,
     );
-    console.log(data);
     // streamGenerateContent returns an array of chunks
     const chunks = Array.isArray(data) ? data : [data];
     const candidate = chunks[0]?.candidates?.[0];

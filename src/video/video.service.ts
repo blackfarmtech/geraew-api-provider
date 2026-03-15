@@ -10,7 +10,7 @@ import { GenerateVideoImageToVideoDto } from './dto/generate-video-image-to-vide
 export class VideoService {
   constructor(private readonly vertexService: VertexService) { }
 
-  async generateVideoTextToVideo(dto: GenerateVideoTextToVideoDto) {
+  async generateVideoTextToVideo(dto: GenerateVideoTextToVideoDto, requestLogId?: string) {
     const model = dto.model
     const location = process.env.LOCATION
 
@@ -46,12 +46,13 @@ export class VideoService {
       body,
       location,
       true,
+      requestLogId,
     );
 
     return { operationName: data.name };
   }
 
-  async generateVideoImageToVideo(dto: GenerateVideoImageToVideoDto) {
+  async generateVideoImageToVideo(dto: GenerateVideoImageToVideoDto, requestLogId?: string) {
     const model = dto.model
     const location = process.env.LOCATION
 
@@ -102,11 +103,13 @@ export class VideoService {
       body,
       location,
       true,
+      requestLogId,
     );
 
     return { operationName: data.name };
   }
-  async generateVideoWithRefereces(dto: GenerateVideoWithReferencesDto) {
+
+  async generateVideoWithRefereces(dto: GenerateVideoWithReferencesDto, requestLogId?: string) {
     const model = dto.model
     const location = process.env.LOCATION
 
@@ -156,12 +159,13 @@ export class VideoService {
       body,
       location,
       true,
+      requestLogId,
     );
 
     return { operationName: data.name };
   }
 
-  async getVideoStatus(operationName: string) {
+  async getVideoStatus(operationName: string, requestLogId?: string) {
     // Extrai location e model do operationName:
     // "projects/.../locations/us-central1/publishers/google/models/MODEL_ID/operations/UUID"
     const locationMatch = operationName.match(/locations\/([^/]+)\//);
@@ -180,6 +184,7 @@ export class VideoService {
       { operationName },
       location,
       true,
+      requestLogId,
     );
 
     const done = data.done === true;

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoggingService } from '../logging/logging.service';
 
 interface AccountInfo {
   dbId: string;
@@ -28,7 +29,10 @@ export class AccountManagerService implements OnModuleInit {
   private activeIndex = 0;
   private refreshPromises = new Map<string, Promise<void>>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly loggingService: LoggingService,
+  ) {}
 
   private static readonly BILLING_PHRASES = [
     'billing account not found',
@@ -86,6 +90,17 @@ export class AccountManagerService implements OnModuleInit {
         `Loaded ${this.accounts.size} active account(s). Active: ${this.accountIds[this.activeIndex]}`,
       );
     }
+
+    this.loggingService.logApp({
+      level: 'LOG',
+      context: 'AccountManagerService',
+      message: `Loaded ${this.accounts.size} active account(s)`,
+      metadata: {
+        type: 'accounts_reload',
+        count: this.accounts.size,
+        activeAccount: this.accountIds[this.activeIndex] || null,
+      },
+    });
   }
 
   private getActiveAccount(): AccountInfo {
@@ -139,6 +154,17 @@ export class AccountManagerService implements OnModuleInit {
     this.logger.log(
       `Token refreshed for ${accountId}, expires at ${new Date(account.tokenExpiry).toISOString()}`,
     );
+
+    this.loggingService.logApp({
+      level: 'LOG',
+      context: 'AccountManagerService',
+      message: `Token refreshed for ${accountId}`,
+      metadata: {
+        type: 'token_refresh',
+        accountId,
+        expiresAt: new Date(account.tokenExpiry).toISOString(),
+      },
+    });
   }
 
   getProjectId(): string {
@@ -175,6 +201,20 @@ export class AccountManagerService implements OnModuleInit {
 
     this.activeIndex = this.activeIndex % this.accountIds.length;
     this.logger.log(`Rotated to account: ${this.accountIds[this.activeIndex]}`);
+
+    this.loggingService.logApp({
+      level: 'WARN',
+      context: 'AccountManagerService',
+      message: `Account ${currentId} deactivated due to billing error`,
+      metadata: {
+        type: 'account_rotation',
+        deactivatedAccount: currentId,
+        remainingAccounts: this.accountIds.length,
+        newActiveAccount: this.accountIds[this.activeIndex] || null,
+        errorText: errorText.substring(0, 500),
+      },
+    });
+
     return true;
   }
 

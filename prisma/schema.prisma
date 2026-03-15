@@ -24,3 +24,46 @@ model GoogleCredential {
   @@map("google_credentials")
   @@schema("geraew-provider")
 }
+
+model RequestLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  method         String
+  url            String
+  route          String?
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  requestHeaders Json?    @map("request_headers") @db.JsonB
+  requestBody    Json?    @map("request_body") @db.JsonB
+  statusCode     Int?     @map("status_code")
+  responseBody   Json?    @map("response_body") @db.JsonB
+  durationMs     Int?     @map("duration_ms")
+  errorMessage   String?  @map("error_message")
+  errorStack     String?  @map("error_stack") @db.Text
+  handler        String?
+  accountId      String?  @map("account_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([method, url])
+  @@index([statusCode])
+  @@map("request_logs")
+  @@schema("geraew-provider")
+}
+
+model AppLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  level        String
+  context      String?
+  message      String   @db.Text
+  metadata     Json?    @db.JsonB
+  errorStack   String?  @map("error_stack") @db.Text
+  requestLogId String?  @map("request_log_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([level])
+  @@index([context])
+  @@index([requestLogId])
+  @@map("app_logs")
+  @@schema("geraew-provider")
+}

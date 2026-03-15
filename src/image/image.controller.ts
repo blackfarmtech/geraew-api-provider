@@ -1,5 +1,6 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import { Request } from 'express';
 import { ImageService } from './image.service';
 import { GenerateImageDto } from './dto/generate-image.dto';
 import { GenerateGeminiImageDto } from './dto/generate-gemini-image.dto';
@@ -15,8 +16,8 @@ export class ImageController {
   @ApiResponse({ status: 201, description: 'Imagem gerada com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados de entrada inválidos' })
   @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
-  async generate(@Body() dto: GenerateImageDto) {
-    return this.imageService.generateImage(dto);
+  async generate(@Body() dto: GenerateImageDto, @Req() req: Request) {
+    return this.imageService.generateImage(dto, req['requestLogId']);
   }
 
   @Post('generate-gemini')
@@ -24,7 +25,7 @@ export class ImageController {
   @ApiResponse({ status: 201, description: 'Imagem gerada com sucesso', schema: { example: { parts: [{ type: 'text', text: 'Here is your image' }, { type: 'image', base64: '...', mimeType: 'image/png' }] } } })
   @ApiResponse({ status: 400, description: 'Nenhum conteúdo gerado ou dados inválidos' })
   @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
-  async generateGemini(@Body() dto: GenerateGeminiImageDto) {
-    return this.imageService.generateGeminiImage(dto);
+  async generateGemini(@Body() dto: GenerateGeminiImageDto, @Req() req: Request) {
+    return this.imageService.generateGeminiImage(dto, req['requestLogId']);
   }
 }

@@ -1,12 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json } from 'express';
 import { AppModule } from './app.module';
+import { DatabaseLogger } from './logging/database.logger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  const dbLogger = app.get(DatabaseLogger);
+  app.useLogger(dbLogger);
+
   app.enableCors();
   app.use(json({ limit: '50mb' }));
   app.setGlobalPrefix('api');
@@ -22,10 +26,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  const configService = app.get(ConfigService);
   const port = 3001;
-  console.log(`🚀 Server running on port ${port}`);
-  console.log(`📚 Swagger docs at http://localhost:${port}/docs`);
+  dbLogger.log(`Server running on port ${port}`, 'Bootstrap');
+  dbLogger.log(`Swagger docs at http://localhost:${port}/docs`, 'Bootstrap');
   await app.listen(port);
 }
 bootstrap();

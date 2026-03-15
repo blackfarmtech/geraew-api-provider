@@ -1,13 +1,17 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { AccountManagerService } from '../account-manager/account-manager.service';
+import { LoggingService } from '../logging/logging.service';
 
 @Injectable()
 export class VertexService {
   private readonly logger = new Logger(VertexService.name);
   private static readonly MAX_RETRIES = 3;
 
-  constructor(private readonly accountManager: AccountManagerService) { }
+  constructor(
+    private readonly accountManager: AccountManagerService,
+    private readonly loggingService: LoggingService,
+  ) {}
 
   async proxyRequest(
     method: string,
@@ -15,6 +19,7 @@ export class VertexService {
     body: any,
     location: string,
     useRegionalEndpoint = false,
+    requestLogId?: string,
   ): Promise<any> {
     for (let attempt = 1; attempt <= VertexService.MAX_RETRIES; attempt++) {
       const projectId = this.accountManager.getProjectId();
@@ -24,15 +29,12 @@ export class VertexService {
         : `https://aiplatform.googleapis.com`;
       const url = `${baseUrl}${resolvedPath}`;
       const token = await this.accountManager.getToken();
+      const startTime = Date.now();
 
       this.logger.log(
         `[attempt ${attempt}] ${method.toUpperCase()} ${url}`,
       );
 
-      console.log(JSON.stringify(body))
-
-      console.log(url);
-      console.log(body);
       try {
         const response = await axios({
           method,
@@ -40,19 +42,53 @@ export class VertexService {
           data: body || undefined,
           headers: {
             Authorization: `Bearer ${token}`,
-
             'Content-Type': 'application/json',
           },
           timeout: 800_000,
         });
 
-        console.log(response.data);
+        const durationMs = Date.now() - startTime;
+
+        this.loggingService.logApp({
+          level: 'LOG',
+          context: 'VertexService',
+          message: `Vertex AI call succeeded: ${method.toUpperCase()} ${url} (${durationMs}ms)`,
+          metadata: {
+            type: 'vertex_api_call',
+            attempt,
+            method: method.toUpperCase(),
+            url,
+            durationMs,
+            statusCode: response.status,
+            responseKeys: response.data ? Object.keys(response.data) : null,
+          },
+          requestLogId,
+        });
+
         return response.data;
       } catch (error) {
+        const durationMs = Date.now() - startTime;
         const status = error.response?.status;
         const errorData = error.response?.data;
         const errorText = JSON.stringify(errorData || '');
-        console.log(error)
+
+        this.loggingService.logApp({
+          level: 'ERROR',
+          context: 'VertexService',
+          message: `Vertex AI call failed: ${method.toUpperCase()} ${url} status=${status} (${durationMs}ms, attempt ${attempt})`,
+          metadata: {
+            type: 'vertex_api_call',
+            attempt,
+            method: method.toUpperCase(),
+            url,
+            durationMs,
+            statusCode: status,
+            errorData,
+          },
+          errorStack: error.stack,
+          requestLogId,
+        });
+
         this.logger.warn(
           `Request failed (attempt ${attempt}): status=${status} error=${errorText.substring(0, 200)}`,
         );
