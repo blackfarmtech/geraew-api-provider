@@ -6,12 +6,13 @@ import {
   Param,
   Body,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiSecurity } from '@nestjs/swagger';
 import { CredentialsService } from './credentials.service';
 import { AccountManagerService } from '../account-manager/account-manager.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 
 @ApiTags('Credentials')
+@ApiSecurity('x-api-key')
 @Controller('credentials')
 export class CredentialsController {
   constructor(
