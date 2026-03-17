@@ -26,7 +26,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  const port = 3001;
+  const port = 8012;
   dbLogger.log(`Server running on port ${port}`, 'Bootstrap');
   dbLogger.log(`Swagger docs at http://localhost:${port}/docs`, 'Bootstrap');
   await app.listen(port);
