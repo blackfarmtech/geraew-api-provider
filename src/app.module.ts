@@ -6,10 +6,13 @@ import { LoggingModule } from './logging/logging.module';
 import { AccountManagerModule } from './account-manager/account-manager.module';
 import { VertexModule } from './vertex/vertex.module';
 import { VideoModule } from './video/video.module';
-import { ImageModule } from './image/image.module';
 import { StatusModule } from './status/status.module';
 import { CredentialsModule } from './credentials/credentials.module';
-import { ApiKeyGuard } from './auth/api-key.guard';
+import { AuthModule } from './auth/auth.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
+import { CreditModule } from './credits/credits.module';
+import { StripeModule } from './stripe/stripe.module';
+import { CombinedAuthGuard } from './auth/guards/combined-auth.guard';
 import { HttpLoggingInterceptor } from './logging/http-logging.interceptor';
 import { AllExceptionsFilter } from './logging/all-exceptions.filter';
 
@@ -18,17 +21,20 @@ import { AllExceptionsFilter } from './logging/all-exceptions.filter';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     LoggingModule,
+    AuthModule,
     AccountManagerModule,
     VertexModule,
     VideoModule,
-    ImageModule,
     StatusModule,
     CredentialsModule,
+    ApiKeysModule,
+    CreditModule,
+    StripeModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ApiKeyGuard,
+      useClass: CombinedAuthGuard,
     },
     {
       provide: APP_INTERCEPTOR,

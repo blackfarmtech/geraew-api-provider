@@ -41,11 +41,13 @@ model RequestLog {
   errorStack     String?  @map("error_stack") @db.Text
   handler        String?
   accountId      String?  @map("account_id")
+  userId         String?  @map("user_id") @db.Uuid
   createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([method, url])
   @@index([statusCode])
+  @@index([userId])
   @@map("request_logs")
   @@schema("geraew-provider")
 }
@@ -65,5 +67,92 @@ model AppLog {
   @@index([context])
   @@index([requestLogId])
   @@map("app_logs")
+  @@schema("geraew-provider")
+}
+
+model User {
+  id                    String   @id @default(uuid()) @db.Uuid
+  email                 String   @unique
+  passwordHash          String   @map("password_hash")
+  name                  String?
+  credits               Int      @default(0)
+  stripeCustomerId      String?  @unique @map("stripe_customer_id")
+  autoRechargeEnabled   Boolean  @default(false) @map("auto_recharge_enabled")
+  autoRechargeThreshold Int      @default(0) @map("auto_recharge_threshold")
+  autoRechargeAmount    Int      @default(0) @map("auto_recharge_amount")
+  role                  String   @default("user")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  apiKeys            ApiKey[]
+  creditTransactions CreditTransaction[]
+
+  @@map("users")
+  @@schema("geraew-provider")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  key        String    @unique
+  name       String    @default("default")
+  active     Boolean   @default(true)
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([key])
+  @@index([userId])
+  @@map("api_keys")
+  @@schema("geraew-provider")
+}
+
+model CreditTransaction {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  type                  String
+  amount                Int
+  balanceAfter          Int      @map("balance_after")
+  description           String?
+  metadata              Json?    @db.JsonB
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([type])
+  @@index([stripePaymentIntentId])
+  @@map("credit_transactions")
+  @@schema("geraew-provider")
+}
+
+model CreditPricing {
+  id              String   @id @default(uuid()) @db.Uuid
+  model           String
+  resolution      String?
+  durationSeconds Int?     @map("duration_seconds")
+  baseCost        Int      @map("base_cost")
+  multipliers     Json?    @db.JsonB
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([model, resolution, durationSeconds])
+  @@map("credit_pricing")
+  @@schema("geraew-provider")
+}
+
+model CreditPackage {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  credits      Int
+  priceInCents Int      @map("price_in_cents")
+  stripePriceId String? @map("stripe_price_id")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("credit_packages")
   @@schema("geraew-provider")
 }

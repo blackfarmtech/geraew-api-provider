@@ -44,6 +44,7 @@ export class LoggingService implements OnModuleInit, OnModuleDestroy {
     errorStack?: string;
     handler?: string;
     accountId?: string;
+    userId?: string;
   }): void {
     const sanitized = this.sanitizeRequestData(data);
     this.requestLogBuffer.push(sanitized);

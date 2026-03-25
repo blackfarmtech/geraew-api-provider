@@ -36,6 +36,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
           responseBody,
           durationMs: Date.now() - startTime,
           handler,
+          userId: req['user']?.id,
         });
       }),
       catchError((error) => {
@@ -53,6 +54,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
           errorMessage: error.message,
           errorStack: error.stack,
           handler,
+          userId: req['user']?.id,
         });
         throw error;
       }),

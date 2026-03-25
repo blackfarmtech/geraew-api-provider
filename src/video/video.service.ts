@@ -6,6 +6,8 @@ import { GenerateVideoImageToVideoDto } from './dto/generate-video-image-to-vide
 
 
 
+const DEFAULT_NEGATIVE_PROMPT = 'children, weapons, violence, nudity, blood, blur';
+
 @Injectable()
 export class VideoService {
   constructor(private readonly vertexService: VertexService) { }
@@ -24,11 +26,12 @@ export class VideoService {
       generateAudio: dto.generate_audio,
       storageUri: process.env.BUCKET_S3,
       personGeneration: 'allow_all',
+      includeRaiReason: true,
     };
 
-    if (dto.negative_prompt) {
-      parameters.negativePrompt = dto.negative_prompt;
-    }
+    parameters.negativePrompt = dto.negative_prompt
+      ? `${DEFAULT_NEGATIVE_PROMPT}, ${dto.negative_prompt}`
+      : DEFAULT_NEGATIVE_PROMPT;
 
 
     const body = {
@@ -82,11 +85,12 @@ export class VideoService {
       generateAudio: dto.generate_audio ?? true,
       storageUri: process.env.BUCKET_S3,
       personGeneration: 'allow_all',
+      includeRaiReason: true,
     };
 
-    if (dto.negative_prompt) {
-      parameters.negativePrompt = dto.negative_prompt;
-    }
+    parameters.negativePrompt = dto.negative_prompt
+      ? `${DEFAULT_NEGATIVE_PROMPT}, ${dto.negative_prompt}`
+      : DEFAULT_NEGATIVE_PROMPT;
 
     const body = {
       instances: [instance],
@@ -137,11 +141,12 @@ export class VideoService {
       generateAudio: dto.generate_audio ?? true,
       storageUri: process.env.BUCKET_S3,
       personGeneration: 'allow_all',
+      includeRaiReason: true,
     };
 
-    if (dto.negative_prompt) {
-      parameters.negativePrompt = dto.negative_prompt;
-    }
+    parameters.negativePrompt = dto.negative_prompt
+      ? `${DEFAULT_NEGATIVE_PROMPT}, ${dto.negative_prompt}`
+      : DEFAULT_NEGATIVE_PROMPT;
 
 
     const body = {
@@ -187,6 +192,8 @@ export class VideoService {
       requestLogId,
     );
 
+
+    console.log(data)
     const done = data.done === true;
 
     if (!done) {
@@ -205,6 +212,10 @@ export class VideoService {
     return {
       done: true,
       operationName: data.name,
+      ...(data.response?.raiMediaFilteredCount && {
+        raiMediaFilteredCount: data.response.raiMediaFilteredCount,
+        raiMediaFilteredReasons: data.response.raiMediaFilteredReasons,
+      }),
       ...(data.error && { error: data.error }),
     };
   }
