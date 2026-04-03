@@ -32,10 +32,10 @@ export class GenerateVideoWithReferencesDto {
   @IsString()
   prompt: string;
 
-  @ApiPropertyOptional({ description: 'Modelo do Vertex AI', default: 'veo-3.1-generate-preview', example: 'veo-3.1-generate-preview' })
+  @ApiPropertyOptional({ description: 'Modelo do Vertex AI', default: 'veo-3.1-generate-001', example: 'veo-3.1-generate-001' })
   @IsOptional()
   @IsString()
-  @IsIn(['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'])
+  @IsIn(['veo-3.1-generate-001', 'veo-3.1-fast-generate-001'])
   model?: string;
 
   @ApiPropertyOptional({ description: 'Duração do vídeo em segundos', default: 8, example: 8 })
@@ -74,7 +74,7 @@ export class GenerateVideoWithReferencesDto {
   negative_prompt?: string;
 
   @ApiPropertyOptional({
-    description: 'Imagens de referência (asset: até 3 imagens do mesmo sujeito, style: 1 imagem de estilo). Style só funciona com veo-2.0-generate-exp.',
+    description: 'Imagens de referência (asset: até 3 imagens do mesmo sujeito, style: 1 imagem de estilo). Style só funciona com veo-2.0-generate-001.',
     type: [ReferenceImageDto],
   })
   @IsOptional()

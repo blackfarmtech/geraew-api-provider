@@ -172,7 +172,7 @@ export class VideoService {
     const location = locationMatch ? locationMatch[1] : 'us-central1';
 
     const modelMatch = operationName.match(/models\/([^/]+)\//);
-    const model = modelMatch ? modelMatch[1] : 'veo-3.1-generate-preview';
+    const model = modelMatch ? modelMatch[1] : 'veo-3.1-generate-001';
 
     const path =
       `/v1/projects/{PROJECT_ID}/locations/${location}` +
