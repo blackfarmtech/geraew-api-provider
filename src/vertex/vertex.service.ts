@@ -22,17 +22,17 @@ export class VertexService {
     requestLogId?: string,
   ): Promise<any> {
     for (let attempt = 1; attempt <= VertexService.MAX_RETRIES; attempt++) {
-      const projectId = this.accountManager.getProjectId();
+      const { id: accountId, token, projectId } =
+        await this.accountManager.acquireAccount();
       const resolvedPath = path.replace(/\{PROJECT_ID\}/g, projectId);
       const baseUrl = useRegionalEndpoint
         ? `https://${location}-aiplatform.googleapis.com`
         : `https://aiplatform.googleapis.com`;
       const url = `${baseUrl}${resolvedPath}`;
-      const token = await this.accountManager.getToken();
       const startTime = Date.now();
 
       this.logger.log(
-        `[attempt ${attempt}] ${method.toUpperCase()} ${url}`,
+        `[attempt ${attempt}] account=${accountId} ${method.toUpperCase()} ${url}`,
       );
 
       try {
@@ -56,6 +56,7 @@ export class VertexService {
           metadata: {
             type: 'vertex_api_call',
             attempt,
+            accountId,
             method: method.toUpperCase(),
             url,
             durationMs,
@@ -79,6 +80,7 @@ export class VertexService {
           metadata: {
             type: 'vertex_api_call',
             attempt,
+            accountId,
             method: method.toUpperCase(),
             url,
             durationMs,
@@ -90,12 +92,14 @@ export class VertexService {
         });
 
         this.logger.warn(
-          `Request failed (attempt ${attempt}): status=${status} error=${errorText.substring(0, 200)}`,
+          `Request failed (attempt ${attempt}, account=${accountId}): status=${status} error=${errorText.substring(0, 200)}`,
         );
 
         if (status === 403 || status === 429) {
-          const isBilling =
-            await this.accountManager.handleBillingError(errorText);
+          const isBilling = await this.accountManager.handleBillingError(
+            errorText,
+            accountId,
+          );
           if (isBilling) {
             this.logger.log('Billing error detected, retrying with next account');
             continue;

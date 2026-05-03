@@ -103,21 +103,31 @@ export class AccountManagerService implements OnModuleInit {
     });
   }
 
-  private getActiveAccount(): AccountInfo {
+  async acquireAccount(): Promise<{
+    id: string;
+    token: string;
+    projectId: string;
+  }> {
     if (this.accountIds.length === 0) {
       throw new ServiceUnavailableException('No GCP accounts configured');
     }
+
     const id = this.accountIds[this.activeIndex];
+    this.activeIndex = (this.activeIndex + 1) % this.accountIds.length;
+
     const account = this.accounts.get(id);
     if (!account) {
       throw new ServiceUnavailableException('All GCP accounts are exhausted');
     }
-    return account;
+
+    const token = await this.ensureToken(id, account);
+    return { id, token, projectId: account.projectId };
   }
 
-  async getToken(): Promise<string> {
-    const account = this.getActiveAccount();
-    const accountId = this.accountIds[this.activeIndex];
+  private async ensureToken(
+    accountId: string,
+    account: AccountInfo,
+  ): Promise<string> {
     const now = Date.now();
     const fiveMinutes = 5 * 60 * 1000;
 
@@ -128,7 +138,7 @@ export class AccountManagerService implements OnModuleInit {
     const existing = this.refreshPromises.get(accountId);
     if (existing) {
       await existing;
-      return this.getActiveAccount().accessToken!;
+      return account.accessToken!;
     }
 
     const promise = this.refreshToken(accountId, account);
@@ -167,11 +177,10 @@ export class AccountManagerService implements OnModuleInit {
     });
   }
 
-  getProjectId(): string {
-    return this.getActiveAccount().projectId;
-  }
-
-  async handleBillingError(errorText: string): Promise<boolean> {
+  async handleBillingError(
+    errorText: string,
+    accountId: string,
+  ): Promise<boolean> {
     const lower = (errorText || '').toLowerCase();
     const isBilling = AccountManagerService.BILLING_PHRASES.some((phrase) =>
       lower.includes(phrase),
@@ -179,18 +188,23 @@ export class AccountManagerService implements OnModuleInit {
 
     if (!isBilling) return false;
 
-    const currentId = this.accountIds[this.activeIndex];
-    this.logger.warn(`Billing error on account ${currentId}: ${errorText}`);
+    this.logger.warn(`Billing error on account ${accountId}: ${errorText}`);
 
-    const account = this.accounts.get(currentId);
+    const account = this.accounts.get(accountId);
     if (account) {
       await this.prisma.googleCredential.update({
         where: { id: account.dbId },
         data: { active: false },
       });
-      this.logger.warn(`Deactivated account ${currentId} in database`);
-      this.accounts.delete(currentId);
-      this.accountIds.splice(this.activeIndex, 1);
+      this.logger.warn(`Deactivated account ${accountId} in database`);
+      this.accounts.delete(accountId);
+      const idx = this.accountIds.indexOf(accountId);
+      if (idx !== -1) {
+        this.accountIds.splice(idx, 1);
+        if (idx < this.activeIndex && this.activeIndex > 0) {
+          this.activeIndex -= 1;
+        }
+      }
     }
 
     if (this.accountIds.length === 0) {
@@ -200,17 +214,15 @@ export class AccountManagerService implements OnModuleInit {
     }
 
     this.activeIndex = this.activeIndex % this.accountIds.length;
-    this.logger.log(`Rotated to account: ${this.accountIds[this.activeIndex]}`);
 
     this.loggingService.logApp({
       level: 'WARN',
       context: 'AccountManagerService',
-      message: `Account ${currentId} deactivated due to billing error`,
+      message: `Account ${accountId} deactivated due to billing error`,
       metadata: {
         type: 'account_rotation',
-        deactivatedAccount: currentId,
+        deactivatedAccount: accountId,
         remainingAccounts: this.accountIds.length,
-        newActiveAccount: this.accountIds[this.activeIndex] || null,
         errorText: errorText.substring(0, 500),
       },
     });
@@ -219,23 +231,21 @@ export class AccountManagerService implements OnModuleInit {
   }
 
   getAccountsStatus() {
-    const activeId =
-      this.accountIds.length > 0
-        ? this.accountIds[this.activeIndex]
-        : null;
+    const nextId =
+      this.accountIds.length > 0 ? this.accountIds[this.activeIndex] : null;
 
     const accounts = this.accountIds.map((id) => {
       const acc = this.accounts.get(id)!;
       return {
         id,
         projectId: acc.projectId,
-        isCurrent: id === activeId,
+        isNext: id === nextId,
       };
     });
 
     return {
       totalAccounts: this.accounts.size,
-      activeAccountId: activeId,
+      nextAccountId: nextId,
       accounts,
     };
   }
