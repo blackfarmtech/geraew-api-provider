@@ -7,6 +7,7 @@ import { AccountManagerModule } from './account-manager/account-manager.module';
 import { VertexModule } from './vertex/vertex.module';
 import { VideoModule } from './video/video.module';
 import { ImageModule } from './image/image.module';
+import { ChatModule } from './chat/chat.module';
 import { StatusModule } from './status/status.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { ApiKeyGuard } from './auth/api-key.guard';
@@ -22,6 +23,7 @@ import { AllExceptionsFilter } from './logging/all-exceptions.filter';
     VertexModule,
     VideoModule,
     ImageModule,
+    ChatModule,
     StatusModule,
     CredentialsModule,
   ],

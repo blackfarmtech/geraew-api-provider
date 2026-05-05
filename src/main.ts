@@ -11,7 +11,12 @@ async function bootstrap() {
   const dbLogger = app.get(DatabaseLogger);
   app.useLogger(dbLogger);
 
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+  });
   app.use(json({ limit: '50mb' }));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
