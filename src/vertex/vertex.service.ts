@@ -20,6 +20,7 @@ export class VertexService {
     location: string,
     useRegionalEndpoint = false,
     requestLogId?: string,
+    extraHeaders?: Record<string, string>,
   ): Promise<any> {
     for (let attempt = 1; attempt <= VertexService.MAX_RETRIES; attempt++) {
       const { id: accountId, token, projectId } =
@@ -43,6 +44,7 @@ export class VertexService {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
+            ...extraHeaders,
           },
           timeout: 800_000,
         });

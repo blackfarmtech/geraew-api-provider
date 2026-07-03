@@ -5,6 +5,7 @@ import { VideoService } from './video.service';
 import { GenerateVideoWithReferencesDto } from './dto/generate-video-with-references.dto';
 import { GenerateVideoTextToVideoDto } from './dto/generate-video-text-to-video.dto';
 import { GenerateVideoImageToVideoDto } from './dto/generate-video-image-to-video.dto';
+import { GenerateVideoOmniDto } from './dto/generate-video-omni.dto';
 
 @ApiTags('Video')
 @ApiSecurity('x-api-key')
@@ -37,6 +38,15 @@ export class VideoController {
   @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
   async generate(@Body() dto: GenerateVideoWithReferencesDto, @Req() req: Request) {
     return this.videoService.generateVideoWithRefereces(dto, req['requestLogId']);
+  }
+
+  @Post('generate-omni')
+  @ApiOperation({ summary: 'Gerar vídeo (Gemini Omni Flash)', description: 'Gera ou edita vídeo com o gemini-omni-flash-preview via Interactions API. Modos: text-to-video (só prompt), image-to-video (first_frame em base64) e edição conversacional (previous_interaction_id de uma geração anterior). Retorna um operationName no formato interactions/<id> para polling no endpoint /video/status.' })
+  @ApiResponse({ status: 201, description: 'Geração iniciada com sucesso', schema: { example: { operationName: 'interactions/v1_abc123', interactionId: 'v1_abc123' } } })
+  @ApiResponse({ status: 400, description: 'Dados de entrada inválidos' })
+  @ApiResponse({ status: 503, description: 'Contas GCP indisponíveis' })
+  async generateOmni(@Body() dto: GenerateVideoOmniDto, @Req() req: Request) {
+    return this.videoService.generateVideoOmni(dto, req['requestLogId']);
   }
 
   @Post('status')
