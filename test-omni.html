@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Omni Flash — Video Tester</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #12141c; --border: #2a2d3a;
+      --accent: #6c63ff; --accent2: #00d4aa; --text: #e2e4ed; --muted: #7b7f93;
+      --error: #ff5c7a; --success: #00d4aa; --warn: #ffb347;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; padding-bottom: 60px; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    header h1 { font-size: 18px; font-weight: 700; color: var(--accent); }
+    header .tag { color: var(--muted); font-size: 12px; }
+
+    .config-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .config-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .config-bar input, .config-bar select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+    .config-bar input[type=text] { min-width: 220px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+    .dot.ok { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot.err { background: var(--error); }
+
+    .tabs { display: flex; gap: 4px; padding: 16px 24px 0; flex-wrap: wrap; }
+    .tabs button { background: var(--surface2); border: 1px solid var(--border); border-bottom: none; color: var(--muted); padding: 10px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .tabs button.active { background: var(--surface); color: var(--accent); border-color: var(--accent); }
+
+    main { padding: 0 24px; }
+    .panel { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 24px; }
+    .panel.active { display: block; }
+    .panel h2 { font-size: 16px; margin-bottom: 4px; }
+    .panel .desc { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
+
+    .field { margin-bottom: 16px; }
+    .field > label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+    textarea, .field input[type=text] { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; }
+    textarea { min-height: 76px; }
+
+    .drop { border: 1px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; color: var(--muted); cursor: pointer; transition: .15s; }
+    .drop:hover { border-color: var(--accent); color: var(--text); }
+    .drop input { display: none; }
+    .thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .thumbs .thumb { position: relative; }
+    .thumbs img { width: 92px; height: 62px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+    .thumbs .x { position: absolute; top: -6px; right: -6px; background: var(--error); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; line-height: 1; }
+    .filemeta { font-size: 12px; color: var(--accent2); margin-top: 8px; }
+
+    .btn { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+
+    .result { margin-top: 20px; }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-ok { background: rgba(0,212,170,0.15); color: var(--success); }
+    .status-err { background: rgba(255,92,122,0.15); color: var(--error); }
+    .status-pending { background: rgba(255,179,71,0.15); color: var(--warn); }
+    pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; max-height: 240px; margin-top: 10px; color: var(--muted); white-space: pre-wrap; word-break: break-word; }
+    video { width: 100%; max-width: 640px; border-radius: 10px; margin-top: 12px; background: #000; border: 1px solid var(--border); }
+    .gcsbox { margin-top: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .gcsbox code { color: var(--accent2); word-break: break-all; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hint { font-size: 12px; color: var(--muted); }
+    a { color: var(--accent); }
+    .foot { padding: 20px 24px; color: var(--muted); font-size: 12px; }
+    .foot code { color: var(--accent2); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ Omni Flash — Video Tester</h1>
+    <span class="tag">gemini-omni-flash-preview · Interactions API</span>
+  </header>
+
+  <div class="config-bar">
+    <label>Base URL</label>
+    <input type="text" id="baseUrl" value="http://localhost:8012/api" />
+    <label>API Key</label>
+    <input type="text" id="apiKey" value="IsSRaionIXymgw1GHyYBWD1u8gBujwIM" style="min-width:280px" />
+    <label>Aspect</label>
+    <select id="aspect"><option>16:9</option><option>9:16</option></select>
+    <label>Delivery</label>
+    <select id="delivery">
+      <option value="inline">inline (toca no navegador, ≤4MB)</option>
+      <option value="uri">uri (gs:// link)</option>
+    </select>
+    <button class="btn btn-ghost" onclick="ping()">Testar conexão</button>
+    <span id="pingDot" class="dot"></span>
+    <span id="pingTxt" class="hint"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="active" data-tab="t2v">text → video</button>
+    <button data-tab="i2v">image → video</button>
+    <button data-tab="r2v">reference → video</button>
+    <button data-tab="edit">edit (vídeo)</button>
+    <button data-tab="multi">multimodal</button>
+  </div>
+
+  <main>
+    <!-- TEXT TO VIDEO -->
+    <section id="panel-t2v" class="panel active">
+      <h2>text_to_video</h2>
+      <p class="desc">Gera um vídeo só a partir do prompt.</p>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="t2v-prompt">A marble rolling fast on a chain reaction track, continuous smooth cinematic shot</textarea>
+      </div>
+      <button class="btn" onclick="run('t2v')">Gerar vídeo</button>
+      <div class="result" id="res-t2v"></div>
+    </section>
+
+    <!-- IMAGE TO VIDEO -->
+    <section id="panel-i2v" class="panel">
+      <h2>image_to_video</h2>
+      <p class="desc">Anima 1 imagem (primeiro frame) seguindo o prompt.</p>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="i2v-prompt">Gentle parallax camera push-in, realistic motion, cinematic</textarea>
+      </div>
+      <div class="field">
+        <label>Imagem (1)</label>
+        <label class="drop" for="i2v-file">Clique para escolher uma imagem<input id="i2v-file" type="file" accept="image/*" /></label>
+        <div class="thumbs" id="i2v-thumbs"></div>
+      </div>
+      <button class="btn" onclick="run('i2v')">Gerar vídeo</button>
+      <div class="result" id="res-i2v"></div>
+    </section>
+
+    <!-- REFERENCE TO VIDEO -->
+    <section id="panel-r2v" class="panel">
+      <h2>reference_to_video</h2>
+      <p class="desc">Combina 2+ imagens de referência (até 7) num vídeo guiado pelo prompt.</p>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="r2v-prompt">Combine these subjects into one smooth cinematic scene with natural motion</textarea>
+      </div>
+      <div class="field">
+        <label>Imagens (2 a 7)</label>
+        <label class="drop" for="r2v-file">Clique para adicionar imagens<input id="r2v-file" type="file" accept="image/*" multiple /></label>
+        <div class="thumbs" id="r2v-thumbs"></div>
+      </div>
+      <button class="btn" onclick="run('r2v')">Gerar vídeo</button>
+      <div class="result" id="res-r2v"></div>
+    </section>
+
+    <!-- EDIT -->
+    <section id="panel-edit" class="panel">
+      <h2>edit</h2>
+      <p class="desc">Edita um vídeo existente (enviado inline) seguindo o prompt. A proporção é herdada do vídeo de entrada.</p>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="edit-prompt">Add falling snow and a cold blue color grade to the scene</textarea>
+      </div>
+      <div class="field">
+        <label>Vídeo (mp4)</label>
+        <label class="drop" for="edit-file">Clique para escolher um vídeo<input id="edit-file" type="file" accept="video/*" /></label>
+        <div class="filemeta" id="edit-meta"></div>
+      </div>
+      <p class="hint">Dica: vídeos curtos/pequenos evitam payloads gigantes. Ideal &lt; 5&nbsp;MB.</p>
+      <button class="btn" onclick="run('edit')">Editar vídeo</button>
+      <div class="result" id="res-edit"></div>
+    </section>
+
+    <!-- MULTIMODAL (custom) -->
+    <section id="panel-multi" class="panel">
+      <h2>multimodal (custom)</h2>
+      <p class="desc">Manda vídeo + imagens + prompt na mesma chamada. Ordem enviada: vídeo → imagens → texto. Escolha a task ou deixe automática.</p>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="multi-prompt">Use a paleta de cor da imagem e adicione neve caindo no vídeo</textarea>
+      </div>
+      <div class="field">
+        <label>Task</label>
+        <select id="multi-task">
+          <option value="">automática (infere pelo conteúdo)</option>
+          <option value="text_to_video">text_to_video</option>
+          <option value="image_to_video">image_to_video</option>
+          <option value="reference_to_video">reference_to_video</option>
+          <option value="edit">edit</option>
+        </select>
+        <p class="hint" style="margin-top:6px">Sem task: vídeo presente → <b>edit</b>; 2+ imgs → reference; 1 img → image_to_video; só prompt → text_to_video.</p>
+      </div>
+      <div class="field">
+        <label>Vídeo (opcional)</label>
+        <label class="drop" for="multi-vfile">Clique para escolher um vídeo<input id="multi-vfile" type="file" accept="video/*" /></label>
+        <div class="filemeta" id="multi-vmeta"></div>
+      </div>
+      <div class="field">
+        <label>Imagens (opcional, até 7)</label>
+        <label class="drop" for="multi-ifile">Clique para adicionar imagens<input id="multi-ifile" type="file" accept="image/*" multiple /></label>
+        <div class="thumbs" id="multiImgs-thumbs"></div>
+      </div>
+      <p class="hint">Obs.: com task <b>edit</b> a proporção é herdada do vídeo (o campo Aspect é ignorado). Payloads grandes = envio lento; prefira mídia curta/pequena.</p>
+      <button class="btn" onclick="run('multi')">Gerar</button>
+      <div class="result" id="res-multi"></div>
+    </section>
+  </main>
+
+  <div class="foot">
+    Servidor precisa estar rodando: <code>node dist/src/main.js</code> (porta 8012). Auth por header <code>x-api-key</code>.<br/>
+    Obs.: edição conversacional via <code>previous_interaction_id</code> não é suportada por este modelo no path do Vertex (retorna 400) — use o modo <b>edit</b> enviando o vídeo.
+  </div>
+
+<script>
+  // ---- estado de arquivos ----
+  const state = { i2v: [], r2v: [], edit: null, multiImgs: [], multiVid: null };
+
+  // ---- config helpers ----
+  const $ = (id) => document.getElementById(id);
+  const getBase = () => $('baseUrl').value.trim().replace(/\/$/, '');
+  const getKey = () => $('apiKey').value.trim();
+  const headers = () => ({ 'Content-Type': 'application/json', 'x-api-key': getKey() });
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  // ---- tabs ----
+  document.querySelectorAll('.tabs button').forEach((b) => {
+    b.onclick = () => {
+      document.querySelectorAll('.tabs button').forEach((x) => x.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      $('panel-' + b.dataset.tab).classList.add('active');
+    };
+  });
+
+  // ---- file -> base64 (sem prefixo data:) ----
+  function fileToB64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+  const fmtBytes = (n) => n > 1e6 ? (n / 1e6).toFixed(2) + ' MB' : (n / 1e3).toFixed(0) + ' KB';
+
+  // ---- image inputs ----
+  async function addImages(key, files, max) {
+    for (const f of files) {
+      if (state[key].length >= max) break;
+      const b64 = await fileToB64(f);
+      state[key].push({ name: f.name, mime: f.type || 'image/png', b64, url: URL.createObjectURL(f) });
+    }
+    renderThumbs(key);
+  }
+  function renderThumbs(key) {
+    const el = $(key + '-thumbs');
+    el.innerHTML = state[key].map((im, i) =>
+      `<div class="thumb"><img src="${im.url}" title="${esc(im.name)}"/><button class="x" onclick="rmImg('${key}',${i})">×</button></div>`
+    ).join('');
+  }
+  function rmImg(key, i) { state[key].splice(i, 1); renderThumbs(key); }
+
+  $('i2v-file').onchange = (e) => { state.i2v = []; addImages('i2v', e.target.files, 1); };
+  $('r2v-file').onchange = (e) => addImages('r2v', e.target.files, 7);
+  $('edit-file').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    state.edit = { name: f.name, mime: f.type || 'video/mp4', b64: await fileToB64(f), size: f.size };
+    $('edit-meta').textContent = `${f.name} · ${fmtBytes(f.size)}`;
+  };
+
+  // multimodal (usa 'multiImgs' como key nos thumbs)
+  $('multi-ifile').onchange = (e) => addImages('multiImgs', e.target.files, 7);
+  $('multi-vfile').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    state.multiVid = { name: f.name, mime: f.type || 'video/mp4', b64: await fileToB64(f), size: f.size };
+    $('multi-vmeta').textContent = `${f.name} · ${fmtBytes(f.size)}`;
+  };
+
+  // ---- connection ping ----
+  async function ping() {
+    $('pingTxt').textContent = 'testando...';
+    try {
+      const r = await fetch(getBase() + '/status', { headers: headers() });
+      $('pingDot').className = 'dot ' + (r.ok ? 'ok' : 'err');
+      $('pingTxt').textContent = r.ok ? 'conectado (HTTP ' + r.status + ')' : 'HTTP ' + r.status;
+    } catch (err) {
+      $('pingDot').className = 'dot err';
+      $('pingTxt').textContent = 'sem conexão — servidor rodando na porta 8012?';
+    }
+  }
+
+  // ---- build body per mode ----
+  function buildBody(mode) {
+    const base = { aspect_ratio: $('aspect').value, delivery: $('delivery').value };
+    if (mode === 't2v') return { ...base, prompt: $('t2v-prompt').value };
+    if (mode === 'i2v') {
+      if (!state.i2v.length) throw new Error('Escolha 1 imagem.');
+      const im = state.i2v[0];
+      return { ...base, prompt: $('i2v-prompt').value, first_frame: im.b64, first_frame_mime_type: im.mime };
+    }
+    if (mode === 'r2v') {
+      if (state.r2v.length < 2) throw new Error('Escolha pelo menos 2 imagens.');
+      return { ...base, prompt: $('r2v-prompt').value, images: state.r2v.map((im) => ({ base64: im.b64, mime_type: im.mime })) };
+    }
+    if (mode === 'edit') {
+      if (!state.edit) throw new Error('Escolha um vídeo.');
+      return { ...base, prompt: $('edit-prompt').value, video_base64: state.edit.b64, video_mime_type: state.edit.mime };
+    }
+    if (mode === 'multi') {
+      const prompt = $('multi-prompt').value.trim();
+      if (!prompt) throw new Error('Prompt é obrigatório.');
+      const body = { ...base, prompt };
+      const task = $('multi-task').value;
+      if (task) body.task = task;
+      if (state.multiVid) { body.video_base64 = state.multiVid.b64; body.video_mime_type = state.multiVid.mime; }
+      if (state.multiImgs.length) body.images = state.multiImgs.map((im) => ({ base64: im.b64, mime_type: im.mime }));
+      return body;
+    }
+  }
+
+  // ---- run ----
+  async function run(mode) {
+    const box = $('res-' + mode);
+    let body;
+    try { body = buildBody(mode); } catch (e) { box.innerHTML = `<span class="status-badge status-err">${esc(e.message)}</span>`; return; }
+
+    const btn = event.target; btn.disabled = true;
+    const t0 = Date.now();
+    box.innerHTML = `<p><span class="spinner"></span> Enviando geração...</p>`;
+    try {
+      const r = await fetch(getBase() + '/video/generate-omni', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) { box.innerHTML = renderErr(r.status, data); btn.disabled = false; return; }
+
+      if (data.done && data.videos && data.videos.length) {
+        box.innerHTML = renderVideos(data, Date.now() - t0);
+      } else if (data.operationName) {
+        await poll(data.operationName, box, t0);
+      } else {
+        box.innerHTML = renderErr(r.status, data);
+      }
+    } catch (err) {
+      box.innerHTML = `<span class="status-badge status-err">Erro de rede: ${esc(err.message)}</span><p class="hint">O servidor está rodando na porta 8012? (CORS já está liberado)</p>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---- polling (caso não venha done na hora) ----
+  async function poll(operationName, box, t0) {
+    box.innerHTML = `<p><span class="spinner"></span> Processando... <span class="hint">${esc(operationName)}</span></p>`;
+    for (let i = 0; i < 240; i++) {
+      await new Promise((res) => setTimeout(res, 3000));
+      try {
+        const r = await fetch(getBase() + '/video/status', { method: 'POST', headers: headers(), body: JSON.stringify({ operationName }) });
+        const data = await r.json();
+        if (data.done) {
+          box.innerHTML = (data.videos && data.videos.length) ? renderVideos(data, Date.now() - t0) : renderErr(200, data);
+          return;
+        }
+        box.innerHTML = `<p><span class="spinner"></span> Processando... ${Math.round((Date.now() - t0) / 1000)}s <span class="hint">${esc(operationName)}</span></p>`;
+      } catch (_) { /* segue tentando */ }
+    }
+    box.innerHTML = `<span class="status-badge status-pending">Timeout de polling</span>`;
+  }
+
+  // ---- render ----
+  function renderVideos(data, ms) {
+    const secs = (ms / 1000).toFixed(1);
+    let html = `<span class="status-badge status-ok">OK · ${secs}s</span>`;
+    for (const v of data.videos) {
+      if (v.base64) {
+        const src = `data:${v.mimeType || 'video/mp4'};base64,${v.base64}`;
+        html += `<video controls autoplay loop src="${src}"></video>
+                 <div><a download="omni.mp4" href="${src}" class="hint">⬇ baixar vídeo</a></div>`;
+      } else if (v.gcsUri) {
+        html += `<div class="gcsbox">
+          <div class="hint">Gerado em (bucket privado — não toca direto no navegador):</div>
+          <code>${esc(v.gcsUri)}</code>
+          <div class="hint" style="margin-top:8px">Troque <b>Delivery</b> para <b>base64</b> no topo para assistir aqui na página.</div>
+        </div>`;
+      }
+    }
+    html += `<pre>${esc(JSON.stringify(pruneB64(data), null, 2))}</pre>`;
+    return html;
+  }
+  function renderErr(status, data) {
+    return `<span class="status-badge status-err">HTTP ${status}</span><pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+  }
+  // esconde base64 gigante do JSON exibido
+  function pruneB64(data) {
+    const c = JSON.parse(JSON.stringify(data));
+    (c.videos || []).forEach((v) => { if (v.base64) v.base64 = `<${v.base64.length} chars>`; });
+    return c;
+  }
+
+  ping();
+</script>
+</body>
+</html>

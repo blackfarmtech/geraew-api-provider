@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { VertexService } from '../vertex/vertex.service';
 import { GenerateVideoWithReferencesDto } from './dto/generate-video-with-references.dto';
 import { GenerateVideoTextToVideoDto } from './dto/generate-video-text-to-video.dto';
@@ -171,6 +171,18 @@ export class VideoService {
   async generateVideoOmni(dto: GenerateVideoOmniDto, requestLogId?: string) {
     const model = dto.model || OMNI_DEFAULT_MODEL;
 
+    // A edição conversacional por previous_interaction_id existe na Gemini API
+    // (generativelanguage), mas o path da Interactions API no Vertex rejeita:
+    // "gemini-omni-flash-preview on this path do not support previous_interaction_id".
+    // Falha cedo com uma mensagem clara em vez de repassar o erro cru do upstream.
+    if (dto.previous_interaction_id) {
+      throw new BadRequestException(
+        'previous_interaction_id (edição conversacional stateful) não é suportado ' +
+          'pelo gemini-omni-flash-preview neste path do Vertex. Para editar um vídeo, ' +
+          'envie o vídeo em video_base64 com task "edit".',
+      );
+    }
+
     // Normaliza as imagens: o array `images` tem precedência sobre first_frame.
     const images =
       dto.images?.length
@@ -206,9 +218,10 @@ export class VideoService {
     content.push({ type: 'text', text: dto.prompt });
 
     // 2+ imagens → reference_to_video; 1 imagem → image_to_video (conforme a doc).
+    // edit edita um vídeo enviado inline em video_base64.
     const task =
       dto.task ||
-      (dto.video_base64 || dto.previous_interaction_id
+      (dto.video_base64
         ? 'edit'
         : images.length > 1
           ? 'reference_to_video'
@@ -216,13 +229,20 @@ export class VideoService {
             ? 'image_to_video'
             : 'text_to_video');
 
-    const delivery = dto.delivery || 'uri';
+    // O Vertex só aceita 'inline' | 'uri' em response_format.delivery.
+    // Aceitamos 'base64' como alias amigável de 'inline' (vídeo embutido na resposta).
+    const delivery = (dto.delivery || 'uri') === 'base64' ? 'inline' : dto.delivery || 'uri';
 
     const responseFormat: Record<string, any> = {
       type: 'video',
-      aspect_ratio: dto.aspect_ratio || '16:9',
       delivery,
     };
+
+    // A task edit herda a proporção do vídeo de entrada — a API rejeita
+    // aspect_ratio no response_format ("Aspect ratio cannot be set ... for edit task").
+    if (task !== 'edit') {
+      responseFormat.aspect_ratio = dto.aspect_ratio || '16:9';
+    }
 
     // A entrega por URI exige um bucket GCS onde o vídeo será gravado.
     if (delivery === 'uri') {
@@ -243,10 +263,6 @@ export class VideoService {
         video_config: { task },
       },
     };
-
-    if (dto.previous_interaction_id) {
-      body.previous_interaction_id = dto.previous_interaction_id;
-    }
 
     const path = '/v1beta1/projects/{PROJECT_ID}/locations/global/interactions';
 

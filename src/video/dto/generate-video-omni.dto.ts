@@ -39,10 +39,10 @@ export class GenerateVideoOmniDto {
     @IsIn(['16:9', '9:16'])
     aspect_ratio?: string;
 
-    @ApiPropertyOptional({ description: 'Entrega do vídeo: "base64" (inline, só até ~4MB) ou "uri" (link para download, recomendado para vídeos maiores)', enum: ['base64', 'uri'], default: 'uri' })
+    @ApiPropertyOptional({ description: 'Entrega do vídeo: "inline" (vídeo embutido em base64 na resposta, só até ~4MB; "base64" é aceito como alias) ou "uri" (grava no GCS e retorna o link, recomendado para vídeos maiores)', enum: ['inline', 'base64', 'uri'], default: 'uri' })
     @IsOptional()
     @IsString()
-    @IsIn(['base64', 'uri'])
+    @IsIn(['inline', 'base64', 'uri'])
     delivery?: string;
 
     @ApiPropertyOptional({ description: 'Bucket GCS onde gravar o vídeo quando delivery="uri" (ex.: gs://meu-bucket/videos). Se omitido, usa a env BUCKET_S3.', example: 'gs://meu-bucket/videos' })
@@ -84,7 +84,7 @@ export class GenerateVideoOmniDto {
     @IsIn(['text_to_video', 'image_to_video', 'reference_to_video', 'edit'])
     task?: string;
 
-    @ApiPropertyOptional({ description: 'ID de uma interação anterior para edição conversacional do vídeo gerado', example: 'v1_abc123' })
+    @ApiPropertyOptional({ description: 'NÃO SUPORTADO neste path do Vertex (retorna 400). Edição conversacional stateful só existe na Gemini API (generativelanguage). Para editar um vídeo aqui, use video_base64 com task "edit".', deprecated: true, example: 'v1_abc123' })
     @IsOptional()
     @IsString()
     previous_interaction_id?: string;
