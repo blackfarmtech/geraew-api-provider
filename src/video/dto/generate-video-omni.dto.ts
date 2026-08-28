@@ -27,10 +27,10 @@ export class GenerateVideoOmniDto {
     @IsString()
     prompt: string;
 
-    @ApiPropertyOptional({ description: 'Modelo do Vertex AI (Interactions API)', default: 'gemini-omni-flash-preview', example: 'gemini-omni-flash-preview' })
+    @ApiPropertyOptional({ description: 'Modelo do Vertex AI (Interactions API)', enum: ['gemini-omni-flash-preview', 'gemini-omni-1.1-flash-preview'], default: 'gemini-omni-flash-preview', example: 'gemini-omni-flash-preview' })
     @IsOptional()
     @IsString()
-    @IsIn(['gemini-omni-flash-preview'])
+    @IsIn(['gemini-omni-flash-preview', 'gemini-omni-1.1-flash-preview'])
     model?: string;
 
     @ApiPropertyOptional({ description: 'Proporção do vídeo', enum: ['16:9', '9:16'], default: '16:9' })
