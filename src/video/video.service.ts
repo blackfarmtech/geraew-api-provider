@@ -266,7 +266,7 @@ export class VideoService {
 
     const path = '/v1beta1/projects/{PROJECT_ID}/locations/global/interactions';
 
-    const data = await this.vertexService.proxyRequest(
+    const { data, projectId } = await this.vertexService.proxyRequestDetailed(
       'POST',
       path,
       body,
@@ -284,28 +284,47 @@ export class VideoService {
     const videos = this.extractOmniVideos(data);
 
     return {
-      operationName: `${OMNI_OPERATION_PREFIX}${interactionId}`,
+      // Codifica o projeto no operationName. A interação é stateful e só existe
+      // no projeto GCP que a criou — o polling precisa reusar esse mesmo projeto,
+      // senão o Vertex responde 400 invalid_request (round-robin de contas).
+      operationName: this.buildOmniOperationName(projectId, interactionId),
       interactionId,
       ...(data.status && { status: data.status }),
       ...(videos.length && { done: true, videos }),
     };
   }
 
-  private async getOmniInteractionStatus(interactionId: string, requestLogId?: string) {
+  private async getOmniInteractionStatus(
+    interactionId: string,
+    requestLogId?: string,
+    projectId?: string,
+  ) {
+    // Formato novo: projeto conhecido → path fixo + poll no mesmo projeto.
+    // Formato legado (sem projeto): usa {PROJECT_ID} + round-robin (comportamento
+    // antigo), apenas para operações criadas antes deste fix.
+    const projectSegment = projectId ?? '{PROJECT_ID}';
     const path =
-      `/v1beta1/projects/{PROJECT_ID}/locations/global/interactions/${interactionId}`;
+      `/v1beta1/projects/${projectSegment}/locations/global/interactions/${interactionId}`;
 
-    const data = await this.vertexService.proxyRequest(
-      'GET',
-      path,
-      null,
-      'global',
-      false,
-      requestLogId,
-      { 'Api-Revision': OMNI_API_REVISION },
+    // Fixa o projeto quando conhecido: a interação só existe no projeto que a
+    // criou. Sem isso o round-robin de contas consulta outro projeto e o Vertex
+    // retorna 400 invalid_request.
+    const { data, projectId: resolvedProjectId } =
+      await this.vertexService.proxyRequestDetailed(
+        'GET',
+        path,
+        null,
+        'global',
+        false,
+        requestLogId,
+        { 'Api-Revision': OMNI_API_REVISION },
+        projectId,
+      );
+
+    const operationName = this.buildOmniOperationName(
+      projectId ?? resolvedProjectId,
+      interactionId,
     );
-
-    const operationName = `${OMNI_OPERATION_PREFIX}${interactionId}`;
     const videos = this.extractOmniVideos(data);
 
     if (videos.length) {
@@ -322,6 +341,39 @@ export class VideoService {
       done: true,
       operationName,
       ...(data.error && { error: data.error }),
+    };
+  }
+
+  /**
+   * Serializa o operationName do Omni como `interactions/<projectId>/<id>`.
+   * O projeto precisa viajar junto porque a interação é stateful e o polling
+   * tem que reusar o mesmo projeto GCP que a criou.
+   */
+  private buildOmniOperationName(
+    projectId: string,
+    interactionId: string,
+  ): string {
+    return `${OMNI_OPERATION_PREFIX}${projectId}/${interactionId}`;
+  }
+
+  /**
+   * Extrai `{ projectId, interactionId }` de um operationName do Omni. Aceita o
+   * formato novo (`interactions/<projectId>/<id>`) e o legado (`interactions/<id>`,
+   * sem projeto) — nesse caso `projectId` é undefined e o poll cai no round-robin
+   * (comportamento antigo), garantindo compatibilidade com operações em voo.
+   */
+  private parseOmniOperationName(operationName: string): {
+    projectId?: string;
+    interactionId: string;
+  } {
+    const rest = operationName.slice(OMNI_OPERATION_PREFIX.length);
+    const slash = rest.indexOf('/');
+    if (slash === -1) {
+      return { interactionId: rest };
+    }
+    return {
+      projectId: rest.slice(0, slash),
+      interactionId: rest.slice(slash + 1),
     };
   }
 
@@ -360,9 +412,12 @@ export class VideoService {
 
   async getVideoStatus(operationName: string, requestLogId?: string) {
     if (operationName.startsWith(OMNI_OPERATION_PREFIX)) {
+      const { projectId, interactionId } =
+        this.parseOmniOperationName(operationName);
       return this.getOmniInteractionStatus(
-        operationName.slice(OMNI_OPERATION_PREFIX.length),
+        interactionId,
         requestLogId,
+        projectId,
       );
     }
 

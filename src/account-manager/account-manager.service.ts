@@ -124,6 +124,35 @@ export class AccountManagerService implements OnModuleInit {
     return { id, token, projectId: account.projectId };
   }
 
+  /**
+   * Adquire a conta cujo projeto GCP corresponde a `projectId`, sem avançar o
+   * round-robin. Necessário para operações stateful ligadas ao projeto que as
+   * criou — ex.: polling de interações do Gemini Omni (Interactions API), onde
+   * consultar a interação em outro projeto retorna 400 invalid_request.
+   */
+  async acquireAccountByProject(projectId: string): Promise<{
+    id: string;
+    token: string;
+    projectId: string;
+  }> {
+    if (this.accountIds.length === 0) {
+      throw new ServiceUnavailableException('No GCP accounts configured');
+    }
+
+    const id = this.accountIds.find(
+      (accId) => this.accounts.get(accId)?.projectId === projectId,
+    );
+    if (!id) {
+      throw new ServiceUnavailableException(
+        `No active GCP account for project ${projectId} (account may have been deactivated)`,
+      );
+    }
+
+    const account = this.accounts.get(id)!;
+    const token = await this.ensureToken(id, account);
+    return { id, token, projectId: account.projectId };
+  }
+
   private async ensureToken(
     accountId: string,
     account: AccountInfo,

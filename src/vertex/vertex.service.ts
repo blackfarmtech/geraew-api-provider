@@ -21,10 +21,45 @@ export class VertexService {
     useRegionalEndpoint = false,
     requestLogId?: string,
     extraHeaders?: Record<string, string>,
+    forceProjectId?: string,
   ): Promise<any> {
+    const { data } = await this.proxyRequestDetailed(
+      method,
+      path,
+      body,
+      location,
+      useRegionalEndpoint,
+      requestLogId,
+      extraHeaders,
+      forceProjectId,
+    );
+    return data;
+  }
+
+  /**
+   * Igual a `proxyRequest`, mas devolve também qual projeto/conta GCP atendeu a
+   * chamada. Use quando precisar amarrar chamadas subsequentes ao mesmo projeto
+   * (operações stateful como as interações do Gemini Omni).
+   *
+   * Quando `forceProjectId` é informado, a chamada NÃO faz round-robin: usa a
+   * conta daquele projeto específico. Nesse modo, um erro de billing não pode
+   * ser resolvido trocando de conta (a operação vive em outro projeto), então
+   * falha explicitamente em vez de rotacionar.
+   */
+  async proxyRequestDetailed(
+    method: string,
+    path: string,
+    body: any,
+    location: string,
+    useRegionalEndpoint = false,
+    requestLogId?: string,
+    extraHeaders?: Record<string, string>,
+    forceProjectId?: string,
+  ): Promise<{ data: any; projectId: string; accountId: string }> {
     for (let attempt = 1; attempt <= VertexService.MAX_RETRIES; attempt++) {
-      const { id: accountId, token, projectId } =
-        await this.accountManager.acquireAccount();
+      const { id: accountId, token, projectId } = forceProjectId
+        ? await this.accountManager.acquireAccountByProject(forceProjectId)
+        : await this.accountManager.acquireAccount();
       const resolvedPath = path.replace(/\{PROJECT_ID\}/g, projectId);
       const baseUrl = useRegionalEndpoint
         ? `https://${location}-aiplatform.googleapis.com`
@@ -68,7 +103,7 @@ export class VertexService {
           requestLogId,
         });
 
-        return response.data;
+        return { data: response.data, projectId, accountId };
       } catch (error) {
         const durationMs = Date.now() - startTime;
         const status = error.response?.status;
@@ -102,7 +137,10 @@ export class VertexService {
             errorText,
             accountId,
           );
-          if (isBilling) {
+          // Com projeto fixo (poll de operação stateful) não adianta rotacionar:
+          // a operação vive naquele projeto. Propaga o erro em vez de tentar
+          // outra conta que não conhece essa operação.
+          if (isBilling && !forceProjectId) {
             this.logger.log('Billing error detected, retrying with next account');
             continue;
           }
