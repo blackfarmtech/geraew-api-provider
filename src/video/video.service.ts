@@ -299,16 +299,14 @@ export class VideoService {
     requestLogId?: string,
     projectId?: string,
   ) {
-    // Formato novo: projeto conhecido → path fixo + poll no mesmo projeto.
-    // Formato legado (sem projeto): usa {PROJECT_ID} + round-robin (comportamento
-    // antigo), apenas para operações criadas antes deste fix.
-    const projectSegment = projectId ?? '{PROJECT_ID}';
-    const path =
-      `/v1beta1/projects/${projectSegment}/locations/global/interactions/${interactionId}`;
+    // Endpoint de polling da Interactions API (Discovery: aiplatform.interactions.getPoll):
+    //   GET /v1beta1/interactions/{id}:poll
+    // O path NÃO leva projeto nem location — é global. O projeto entra apenas na
+    // escolha da conta/token (forceProjectId), pra autenticar com a conta que criou
+    // a interação. O bug anterior montava projects/.../locations/global/interactions/{id}
+    // (recurso inexistente) → 400 invalid_request.
+    const path = `/v1beta1/interactions/${interactionId}:poll`;
 
-    // Fixa o projeto quando conhecido: a interação só existe no projeto que a
-    // criou. Sem isso o round-robin de contas consulta outro projeto e o Vertex
-    // retorna 400 invalid_request.
     const { data, projectId: resolvedProjectId } =
       await this.vertexService.proxyRequestDetailed(
         'GET',
@@ -331,6 +329,9 @@ export class VideoService {
       return { done: true, operationName, videos };
     }
 
+    // Status da interação (schema GenaiVertexV1beta1Interaction). Estados de
+    // conclusão observados: 'succeeded'/'completed'/'failed'. Enquanto pendente,
+    // segue em polling.
     const status = String(data.status || '').toLowerCase();
     const pending = ['in_progress', 'queued', 'processing', 'running', 'pending', 'created'];
     if (!status || pending.includes(status)) {
@@ -341,6 +342,7 @@ export class VideoService {
       done: true,
       operationName,
       ...(data.error && { error: data.error }),
+      ...((data.errors?.length ?? 0) > 0 && { error: data.errors }),
     };
   }
 
