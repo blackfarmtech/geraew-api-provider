@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { VertexService } from '../vertex/vertex.service';
 import { GenerateVideoWithReferencesDto } from './dto/generate-video-with-references.dto';
 import { GenerateVideoTextToVideoDto } from './dto/generate-video-text-to-video.dto';
@@ -11,6 +11,8 @@ const OMNI_OPERATION_PREFIX = 'interactions/';
 
 @Injectable()
 export class VideoService {
+  private readonly logger = new Logger(VideoService.name);
+
   constructor(private readonly vertexService: VertexService) { }
 
   async generateVideoTextToVideo(dto: GenerateVideoTextToVideoDto, requestLogId?: string) {
@@ -329,15 +331,35 @@ export class VideoService {
       return { done: true, operationName, videos };
     }
 
-    // Status da interação (schema GenaiVertexV1beta1Interaction). Estados de
-    // conclusão observados: 'succeeded'/'completed'/'failed'. Enquanto pendente,
-    // segue em polling.
-    const status = String(data.status || '').toLowerCase();
+    // Estados da interação — enum oficial (schema GenaiVertexV1beta1Interaction,
+    // MAIÚSCULO na doc): IN_PROGRESS, QUEUED, COMPLETED, FAILED, REQUIRES_ACTION,
+    // INCOMPLETE, BUDGET_EXCEEDED, CANCELLED, UNSPECIFIED. Normalizamos p/ minúsculo.
+    const rawStatus = String(data.status || '');
+    const status = rawStatus.toLowerCase();
     const pending = ['in_progress', 'queued', 'processing', 'running', 'pending', 'created'];
     if (!status || pending.includes(status)) {
       return { done: false, operationName };
     }
 
+    // Estados terminais que NÃO são sucesso. Sem vídeo + terminal = falha real.
+    // Antes, um FAILED sem `data.error` retornava done:true silencioso ("vídeo
+    // fantasma"). Agora logamos o status cru em ERROR e propagamos o erro.
+    const failed = ['failed', 'cancelled', 'canceled', 'budget_exceeded', 'incomplete', 'requires_action'];
+    if (failed.includes(status) || (!status.includes('complet') && !status.includes('succeed'))) {
+      const error =
+        data.error ||
+        (data.errors?.length ? data.errors : undefined) ||
+        `interaction terminou em '${rawStatus || 'UNKNOWN'}' sem vídeo`;
+      this.logger.error(
+        `Omni interaction ${interactionId} terminal sem vídeo: status='${rawStatus}' error=${JSON.stringify(error)}`,
+      );
+      return { done: true, operationName, error };
+    }
+
+    // COMPLETED/SUCCEEDED mas sem vídeo extraído: também é anômalo, loga e reporta.
+    this.logger.warn(
+      `Omni interaction ${interactionId} status='${rawStatus}' sem vídeo extraído`,
+    );
     return {
       done: true,
       operationName,
