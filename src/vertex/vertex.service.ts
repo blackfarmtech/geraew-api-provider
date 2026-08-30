@@ -79,6 +79,11 @@ export class VertexService {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
+            // Quota/resource project. Obrigatório em endpoints globais cujo path
+            // NÃO carrega o projeto (ex.: interactions/{id}:poll). Sem isso o
+            // Vertex responde 400 RESOURCE_PROJECT_INVALID. No create (projeto no
+            // path) é redundante mas coerente — sempre o mesmo projeto.
+            'x-goog-user-project': projectId,
             ...extraHeaders,
           },
           timeout: 800_000,
